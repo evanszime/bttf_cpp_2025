@@ -1,16 +1,5 @@
 #pragma once
-
-struct RigidbodyComponent
-{
-    float vx {0.0f};
-    float vy {0.0f};
-    float ax {0.0f};
-    float ay {0.0f};
-    float mass {0.0f};
-    float restitution = 0.3f;
-    float fx {-1.0f};
-    float fy {-1.0f};
-    bool isStatic {false};
-    bool useGravity {false};
-    bool enableCollision = true; 
+struct RigidbodyComponent {
+    float vx=0,vy=0,ax=0,ay=0,mass=1.f,restitution=0.3f,fx=0,fy=0;
+    bool isStatic=false,useGravity=false,enableCollision=true;
 };

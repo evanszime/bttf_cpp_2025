@@ -1,16 +1,18 @@
 #pragma once
 
-// === ECS CORE ===
+// ECS CORE
 #include "Entity.hpp"
 #include "CompContainer.hpp"
 #include "World.hpp"
 
-// === COMPONENTS ===
+// COMPONENTS
 #include "Components/Position.hpp"
 #include "Components/Health.hpp"
 #include "Components/Rigidbody.hpp"
 #include "Components/BoxCollider.hpp"
 #include "Components/Sprite.hpp"
+#include "Components/Circle.hpp"
+#include "Components/Rectangle.hpp"
 #include "Components/Animation.hpp"
 #include "Components/Input.hpp"
 #include "Components/Text.hpp"
@@ -20,14 +22,13 @@
 #include "Components/Bullet.hpp"
 #include "Components/Wave.hpp"
 #include "Components/EnemyAI.hpp"
-#include "Components/Health.hpp"
 #include "Components/Score.hpp"
 #include "Components/Time.hpp"
 
-// === GLOBAL ===
+// GLOBAL
 #include "GlobalComponent.hpp"
 
-// === SYSTEMS ===
+// SYSTEMS
 #include "Systems/System.hpp"
 #include "Systems/RenderSystem.hpp"
 #include "Systems/InputSystem.hpp"
@@ -41,10 +42,10 @@
 #include "Systems/WaveSystem.hpp"
 #include "Systems/SoundSystem.hpp"
 
-// === SCENE ===
+// SCENE
 #include "SceneManager.hpp"
 
-// === RAYLIB ===
+// RAYLIB
 #include <raylib.h>
 #include <raymath.h>
 #include <cmath>

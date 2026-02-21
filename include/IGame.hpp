@@ -1,35 +1,24 @@
 #pragma once
-#include "SceneManager.hpp"
-#include "GlobalComponent.hpp"
-#include <string>
-#include <raylib.h>
+#include "Engine.hpp"
 
 class IGame {
 public:
-    struct Resolution {
-        int         width;
-        int         height;
-        int         fps;
-        std::string title;
-        bool        full;
-    };
+    struct Resolution { int width=1280,height=720,fps=60; std::string title="Zimex"; bool full=false; };
 
 protected:
-    Resolution    resolution;
-    SceneManager  sceneManager;
-    bool          isRunning = false;
+    Resolution   resolution;
+    SceneManager sceneManager;
+    bool         isRunning = false;
 
 public:
     bool exit = false;
 
     IGame(int w, int h, int fps, const std::string& title, bool full)
         : resolution{w, h, fps, title, full} {}
-
     virtual ~IGame() = default;
 
-    // À implémenter dans Game.cpp
+    virtual void loadAssets()       = 0;
     virtual void initializeScenes() = 0;
-    virtual void loadAssets()       = 0;    // charge textures + sons
     virtual void update(float dt)   = 0;
     virtual void render(float dt)   = 0;
     virtual void close()            = 0;
@@ -39,22 +28,20 @@ public:
         if (resolution.full) ToggleFullscreen();
         SetTargetFPS(resolution.fps);
         InitAudioDevice();
+        SetMasterVolume(0.5f);
         SetExitKey(KEY_NULL);
 
         loadAssets();
         initializeScenes();
         sceneManager.changeScene(SceneType::MENU);
-
         isRunning = true;
 
         while (!exit && !WindowShouldClose()) {
             float dt = GetFrameTime();
-
             update(dt);
-
             BeginDrawing();
-            ClearBackground(BLACK);
-            render(dt);
+                ClearBackground(BLACK);
+                render(dt);
             EndDrawing();
         }
 
@@ -63,6 +50,6 @@ public:
         CloseWindow();
     }
 
+    SceneManager& getSceneManager() { return sceneManager; }
     const Resolution& getResolution() const { return resolution; }
-    SceneManager&     getSceneManager()     { return sceneManager; }
 };

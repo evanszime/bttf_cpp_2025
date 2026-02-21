@@ -3,266 +3,187 @@
 #include <random>
 
 // ================================================================
-// WEAPON IMPLEMENTATIONS - 4 types mécaniquement distincts
-// Pistol  : hitscan instantané (1 rayon, pas de projectile)
-// Shotgun : projectiles multiples en cône (area spray)
-// Sniper  : projectile unique perforant, longue portée
-// Rocket  : projectile lent avec explosion en zone (AoE)
+// HELPERS
 // ================================================================
+static std::mt19937 rng(42);
 
-// ---------------------------------------------------------------
-// Helper: spawn un projectile dans le world
-// ---------------------------------------------------------------
-static Entity spawnBullet(World& world, float ox, float oy,
-                          float dx, float dy, float speed,
-                          float dmg, bool pierce = false, int pierceLeft = 0)
+static void normalize(float& x, float& y){
+    float l=std::sqrt(x*x+y*y); if(l>0){x/=l;y/=l;}
+}
+
+// Spawn une particule visuelle temporaire (cercle qui disparait)
+static void spawnParticle(World& w, float x, float y,
+                           Color col, float radius, float duration,
+                           EntityTag tag=EntityTag::EXPLOSION)
 {
-    Entity e = world.createEntity();
+    Entity e=w.createEntity();
+    PositionComponent p; p.x=x; p.y=y; w.addComponent(e,p);
+    CircleComponent c; c.radius=radius; c.inlineColor=col;
+    c.outlineColor={255,255,200,200}; c.tickness=2.f; c.layer=5;
+    c.tag=tag; w.addComponent(e,c);
+    TimeComponent t; t.duration=duration; w.addComponent(e,t);
+}
 
-    PositionComponent pos; pos.x = ox; pos.y = oy;
-    world.addComponent(e, pos);
+// Spawn un bullet avec tous ses paramètres
+static Entity spawnBullet(World& w,
+    float ox,float oy, float dx,float dy,
+    float spd, float dmg, bool isEnemy,
+    BulletEffect fx=BulletEffect::NONE,
+    int pierce=0, float aoeR=0,float aoeDmg=0)
+{
+    Entity e=w.createEntity();
+    PositionComponent pos; pos.x=ox; pos.y=oy; w.addComponent(e,pos);
 
-    float len = sqrtf(dx*dx + dy*dy);
-    if (len > 0.f) { dx /= len; dy /= len; }
+    BulletComponent b;
+    b.vx=dx*spd; b.vy=dy*spd; b.speed=spd; b.damage=dmg;
+    b.isEnemy=isEnemy; b.effect=fx;
+    b.pierceLeft=pierce; b.aoeRadius=aoeR; b.aoeDamage=aoeDmg;
+    w.addComponent(e,b);
 
-    RigidbodyComponent rb; rb.vx = dx * speed; rb.vy = dy * speed;
-    world.addComponent(e, rb);
-
-    BulletComponent bullet;
-    bullet.vx = rb.vx; bullet.vy = rb.vy;
-    bullet.damage = dmg; bullet.speed = speed;
-    bullet.fromPlayer = true;
-    bullet.pierce = pierce; bullet.pierceLeft = pierceLeft;
-    world.addComponent(e, bullet);
-
+    float angle=std::atan2(dy,dx)*180.f/3.14159f;
     SpriteComponent spr;
-    spr.texturePath = 3; // << ASSET: assets/textures/bullet_player.png
-    spr.width  = 8.f; spr.height = 8.f;
-    spr.tag    = EntityTag::BULLET_PL;
-    spr.layer  = 3;
-    world.addComponent(e, spr);
+    spr.texturePath=isEnemy?4:3;
+    spr.width=10; spr.height=10;
+    spr.tag=isEnemy?EntityTag::BULLET_EN:EntityTag::BULLET_PL;
+    spr.layer=3; spr.rotation=angle;
 
-    BoxColliderComponent col;
-    col.isCircle = true; col.radius = 4.f;
-    col.TagsCollided = { (int)EntityTag::ENEMY, (int)EntityTag::BOSS };
-    world.addComponent(e, col);
+    // Taille/couleur par effet
+    if(fx==BulletEffect::EXPLOSION){ spr.width=18;spr.height=18;spr.tint=ORANGE; }
+    else if(fx==BulletEffect::PIERCE){ spr.width=14;spr.height=6;spr.tint=SKYBLUE; }
+    w.addComponent(e,spr);
 
+    BoxColliderComponent col; col.isCircle=true;
+    col.radius=(fx==BulletEffect::EXPLOSION)?8.f:5.f;
+    col.TagsCollided=isEnemy
+        ? std::vector<int>{(int)EntityTag::PLAYER}
+        : std::vector<int>{(int)EntityTag::ENEMY,(int)EntityTag::BOSS};
+    w.addComponent(e,col);
     return e;
 }
 
-// ---------------------------------------------------------------
-// PISTOL - hitscan (rayon instantané, pas de projectile physique)
-// Différence clé: aucun BulletComponent, dégât immédiat via rayon
-// ---------------------------------------------------------------
+// ================================================================
+// 5 ARMES
+// ================================================================
+
+// 1) PISTOL - 20 dmg, 12 balles, semi-auto
 class Pistol : public IWeapon {
+    World* _w;
 public:
-    Pistol() {
-        currentAmmo = 12; maxAmmo = 12;
-        fireRate = 0.35f; reloadTime = 1.2f;
+    Pistol(World* w):_w(w){maxAmmo=50;currentAmmo=50;fireRate=2.0f;reloadTime=1.0f;}
+    std::string getName() const override{return "Pistol";}
+    std::string getDesc() const override{return "Semi-auto | 50 dmg | 12/12";}
+    bool fire(float px,float py,float tx,float ty) override {
+        if(!canFire()) return false;
+        float dx=tx-px,dy=ty-py; normalize(dx,dy);
+        spawnBullet(*_w,px,py,dx,dy,650.f,20.f,false);
+        // Flash visuel
+        spawnParticle(*_w,px,py,{255,255,100,200},8.f,0.06f);
+        currentAmmo--; fireCooldown=fireRate; return true;
     }
-
-    std::string getName() const override { return "Pistol"; }
-
-    bool fire(float px, float py, float tx, float ty) override {
-        if (!canFire() || !_world) return false;
-        currentAmmo--;
-        fireCooldown = fireRate;
-
-        // Hitscan: chercher l'ennemi le plus proche sur la ligne de tir
-        float dx = tx - px, dy = ty - py;
-        float len = sqrtf(dx*dx + dy*dy);
-        if (len < 0.001f) return true;
-        float ndx = dx/len, ndy = dy/len;
-
-        auto& enemies  = _world->getContainer<SpriteComponent>();
-        auto& healths  = _world->getContainer<HealthComponent>();
-        auto& positions= _world->getContainer<PositionComponent>();
-
-        Entity hit{0}; float bestDist = 800.f;
-
-        for (Entity e : enemies.getEntities()) {
-            auto* spr = enemies.get(e);
-            if (!spr) continue;
-            if (spr->tag != EntityTag::ENEMY && spr->tag != EntityTag::BOSS) continue;
-            auto* pos = positions.get(e);
-            if (!pos) continue;
-
-            // Projection sur le rayon
-            float ex = pos->x - px, ey = pos->y - py;
-            float proj = ex*ndx + ey*ndy;
-            if (proj < 0) continue;
-
-            float perpX = ex - proj*ndx, perpY = ey - proj*ndy;
-            float perp = sqrtf(perpX*perpX + perpY*perpY);
-
-            if (perp < 20.f && proj < bestDist) {
-                bestDist = proj; hit = e;
-            }
-        }
-
-        if ((std::size_t)hit != 0) {
-            if (auto* h = healths.get(hit))
-                h->hp -= 15.f;
-        }
-        return true;
-    }
-
-    void setWorld(World* w) { _world = w; }
-private:
-    World* _world = nullptr;
 };
 
-// ---------------------------------------------------------------
-// SHOTGUN - spray de projectiles en cône
-// Différence clé: 6 projectiles simultanés, courte portée
-// ---------------------------------------------------------------
+// 2) SHOTGUN - 8dmg x7, 6 balles, cône 40°
 class Shotgun : public IWeapon {
+    World* _w;
 public:
-    Shotgun() {
-        currentAmmo = 6; maxAmmo = 6;
-        fireRate = 0.8f; reloadTime = 2.0f;
-    }
-
-    std::string getName() const override { return "Shotgun"; }
-
-    bool fire(float px, float py, float tx, float ty) override {
-        if (!canFire() || !_world) return false;
-        currentAmmo--;
-        fireCooldown = fireRate;
-
-        float baseAngle = atan2f(ty - py, tx - px);
-        static std::mt19937 rng(42);
-        std::uniform_real_distribution<float> spread(-0.35f, 0.35f); // ~20°
-
-        // 6 projectiles en cône
-        for (int i = 0; i < 6; ++i) {
-            float angle = baseAngle + spread(rng);
-            float dx = cosf(angle), dy = sinf(angle);
-            spawnBullet(*_world, px, py, dx, dy, 320.f, 8.f);
+    Shotgun(World* w):_w(w){maxAmmo=6;currentAmmo=6;fireRate=0.85f;reloadTime=2.f;}
+    std::string getName() const override{return "Shotgun";}
+    std::string getDesc() const override{return "7 pellets | 8dmg each | 6/6";}
+    bool fire(float px,float py,float tx,float ty) override {
+        if(!canFire()) return false;
+        float dx=tx-px,dy=ty-py; normalize(dx,dy);
+        float base=std::atan2(dy,dx);
+        float spread=40.f*(3.14159f/180.f);
+        for(int i=0;i<7;i++){
+            float a=base-spread/2.f+(spread/6.f)*i;
+            std::uniform_real_distribution<float> jit(-0.05f,0.05f);
+            spawnBullet(*_w,px,py,std::cos(a+jit(rng)),std::sin(a+jit(rng)),360.f,8.f,false);
         }
-        return true;
+        // Blast visuel
+        spawnParticle(*_w,px,py,{255,140,0,180},18.f,0.12f);
+        currentAmmo--; fireCooldown=fireRate; return true;
     }
-
-    void setWorld(World* w) { _world = w; }
-private:
-    World* _world = nullptr;
 };
 
-// ---------------------------------------------------------------
-// SNIPER - projectile perforant, haute vélocité
-// Différence clé: traverse plusieurs ennemis (pierce), 1 balle
-// ---------------------------------------------------------------
+// 3) SNIPER - 60dmg, 5 balles, perforant x3
 class Sniper : public IWeapon {
+    World* _w;
 public:
-    Sniper() {
-        currentAmmo = 5; maxAmmo = 5;
-        fireRate = 1.2f; reloadTime = 2.5f;
+    Sniper(World* w):_w(w){maxAmmo=5;currentAmmo=5;fireRate=1.3f;reloadTime=2.5f;}
+    std::string getName() const override{return "Sniper";}
+    std::string getDesc() const override{return "Pierce x3 | 60dmg | 5/5";}
+    bool fire(float px,float py,float tx,float ty) override {
+        if(!canFire()) return false;
+        float dx=tx-px,dy=ty-py; normalize(dx,dy);
+        Entity e=spawnBullet(*_w,px,py,dx,dy,950.f,60.f,false,BulletEffect::PIERCE,3,0,0);
+        auto*b=_w->getComponent<BulletComponent>(e); if(b) b->range=2000.f;
+        // Traînée bleue
+        spawnParticle(*_w,px,py,{100,180,255,220},12.f,0.08f);
+        currentAmmo--; fireCooldown=fireRate; return true;
     }
-
-    std::string getName() const override { return "Sniper"; }
-
-    bool fire(float px, float py, float tx, float ty) override {
-        if (!canFire() || !_world) return false;
-        currentAmmo--;
-        fireCooldown = fireRate;
-        float dx = tx - px, dy = ty - py;
-        spawnBullet(*_world, px, py, dx, dy, 900.f, 40.f, true, 3);
-        return true;
-    }
-
-    void setWorld(World* w) { _world = w; }
-private:
-    World* _world = nullptr;
 };
 
-// ---------------------------------------------------------------
-// ROCKET LAUNCHER - projectile lent, explosion AoE
-// Différence clé: dégâts en zone à l'impact (zone = 80px radius)
-// ---------------------------------------------------------------
-class RocketLauncher : public IWeapon {
+// 4) AK47 - 12dmg, 30 balles, rafale auto
+class AK47 : public IWeapon {
+    World* _w;
 public:
-    RocketLauncher() {
-        currentAmmo = 3; maxAmmo = 3;
-        fireRate = 1.5f; reloadTime = 3.0f;
+    AK47(World* w):_w(w){maxAmmo=30;currentAmmo=30;fireRate=0.1f;reloadTime=2.f;}
+    std::string getName() const override{return "AK-47";}
+    std::string getDesc() const override{return "Full-auto | 12dmg | 30/30";}
+    bool fire(float px,float py,float tx,float ty) override {
+        if(!canFire()) return false;
+        float dx=tx-px,dy=ty-py; normalize(dx,dy);
+        // Légère dispersion aléatoire
+        std::uniform_real_distribution<float> jit(-0.06f,0.06f);
+        float jx=jit(rng),jy=jit(rng);
+        float nx=dx+jx,ny=dy+jy; normalize(nx,ny);
+        spawnBullet(*_w,px,py,nx,ny,550.f,12.f,false,BulletEffect::BURST);
+        // Douille visuelle (petit cercle doré rapide)
+        spawnParticle(*_w,px+jit(rng)*10,py+jit(rng)*10,{255,200,50,200},5.f,0.08f);
+        currentAmmo--; fireCooldown=fireRate; return true;
     }
+};
 
-    std::string getName() const override { return "Rocket"; }
-
-    bool fire(float px, float py, float tx, float ty) override {
-        if (!canFire() || !_world) return false;
-        currentAmmo--;
-        fireCooldown = fireRate;
-
-        float dx = tx - px, dy = ty - py;
-        Entity bullet = spawnBullet(*_world, px, py, dx, dy, 250.f, 0.f); // dégât géré à l'explosion
-
-        // Marquer comme roquette dans le BulletComponent
-        if (auto* b = _world->getComponent<BulletComponent>(bullet)) {
-            b->damage  = 60.f;
-            b->lifetime = 4.f;
-            // On réutilise pierceLeft = -1 comme marqueur "rocket"
-            b->pierceLeft = -99;
-        }
-        // Sprite roquette
-        if (auto* spr = _world->getComponent<SpriteComponent>(bullet)) {
-            spr->texturePath = 3; // même sprite pour l'instant << ASSET
-            spr->width  = 16.f; spr->height = 8.f;
-        }
-        return true;
+// 5) BOMB LAUNCHER - 80dmg direct + 50dmg AoE 120px, 3 balles
+class BombLauncher : public IWeapon {
+    World* _w;
+public:
+    BombLauncher(World* w):_w(w){maxAmmo=3;currentAmmo=3;fireRate=1.8f;reloadTime=3.f;}
+    std::string getName() const override{return "Bomb";}
+    std::string getDesc() const override{return "AoE 120px | 80+50dmg | 3/3";}
+    bool fire(float px,float py,float tx,float ty) override {
+        if(!canFire()) return false;
+        float dx=tx-px,dy=ty-py; normalize(dx,dy);
+        Entity e=spawnBullet(*_w,px,py,dx,dy,200.f,80.f,false,
+                              BulletEffect::EXPLOSION,0,120.f,50.f);
+        auto*b=_w->getComponent<BulletComponent>(e); if(b) b->range=600.f;
+        // Flash de lancement
+        spawnParticle(*_w,px,py,{255,80,0,220},20.f,0.1f);
+        currentAmmo--; fireCooldown=fireRate; return true;
     }
-
-    void setWorld(World* w) { _world = w; }
-private:
-    World* _world = nullptr;
 };
 
 // ================================================================
-// WeaponSystem::update
+// FACTORY
 // ================================================================
-
-// Helper pour créer une arme par nom
-static std::shared_ptr<IWeapon> makeWeapon(const std::string& type, World* world)
-{
-    if (type == "pistol") {
-        auto w = std::make_shared<Pistol>(); w->setWorld(world); return w;
-    } else if (type == "shotgun") {
-        auto w = std::make_shared<Shotgun>(); w->setWorld(world); return w;
-    } else if (type == "sniper") {
-        auto w = std::make_shared<Sniper>(); w->setWorld(world); return w;
-    } else if (type == "rocket") {
-        auto w = std::make_shared<RocketLauncher>(); w->setWorld(world); return w;
-    }
-    return nullptr;
-}
-
-void WeaponSystem::update(float dt)
-{
-    if (!world) return;
-    auto& weapons = world->getContainer<WeaponComponent>();
-
-    for (Entity e : weapons.getEntities()) {
-        auto* wc = weapons.get(e);
-        if (!wc) continue;
-
-        // Initialiser une arme pour les pickups
-        if (wc->isPickup && !wc->currentWeapon && !wc->pickupWeaponType.empty()) {
-            // Arme au sol: rien à update
-            continue;
-        }
-
-        // Update des armes actives
-        if (wc->currentWeapon) {
-            wc->currentWeapon->update(dt);
-            wc->ammo    = wc->currentWeapon->getCurrentAmmo();
-            wc->maxAmmo = wc->currentWeapon->getMaxAmmo();
-            wc->weaponName = wc->currentWeapon->getName();
-        }
-        if (wc->secondWeapon)
-            wc->secondWeapon->update(dt);
-    }
-}
-
-// Fonction utilitaire globale pour créer une arme (utilisée dans GameScene)
 std::shared_ptr<IWeapon> createWeapon(const std::string& type, World* world) {
-    return makeWeapon(type, world);
+    if(type=="shotgun")  return std::make_shared<Shotgun>(world);
+    if(type=="sniper")   return std::make_shared<Sniper>(world);
+    if(type=="ak47")     return std::make_shared<AK47>(world);
+    if(type=="bomb")     return std::make_shared<BombLauncher>(world);
+    return std::make_shared<Pistol>(world);  // défaut
+}
+
+// ================================================================
+// SYSTEM UPDATE
+// ================================================================
+void WeaponSystem::update(float dt) {
+    if(!world) return;
+    auto& weapons=world->getContainer<WeaponComponent>();
+    for(Entity e:weapons.getEntities()){
+        auto*wc=weapons.get(e); if(!wc) continue;
+        // Mettre à jour les 2 slots
+        for(auto& slot:wc->slots)
+            if(slot.weapon) slot.weapon->update(dt);
+    }
 }

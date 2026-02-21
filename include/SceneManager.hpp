@@ -5,19 +5,17 @@
 #include <unordered_map>
 #include <functional>
 
-enum class SceneType {
-    MENU,
-    GAME,
-    SETTINGS,
-    GAME_OVER,
-    VICTORY,
-};
+// Forward déclaration de InputContext (défini dans InputSystem.hpp)
+class InputContext;
+
+enum class SceneType { MENU, GAME, SETTINGS, GAMEOVER };
 
 class Scene {
 protected:
-    World       world;
-    std::string sceneName;
-    bool        isActive = false;
+    World        world;
+    std::string  sceneName;
+    bool         isActive = false;
+    InputContext* _inputCtx = nullptr;
 
 public:
     Scene(const std::string& name) : sceneName(name) {}
@@ -28,20 +26,22 @@ public:
     virtual void update(float dt)   = 0;
     virtual void render(float dt)   = 0;
 
-    World&       getWorld()      { return world; }
-    const std::string& getName() const { return sceneName; }
-    bool  getIsActive()          const { return isActive; }
-    void  setActive(bool active)       { isActive = active; }
+    World&       getWorld()          { return world; }
+    const std::string& getName()     const { return sceneName; }
+    bool getIsActive()               const { return isActive; }
+    void setActive(bool a)           { isActive = a; }
 };
 
 class SceneManager {
 private:
     std::unordered_map<SceneType, std::unique_ptr<Scene>> scenes;
-    Scene* currentScene   = nullptr;
-    Scene* nextScene      = nullptr;
+    Scene* currentScene    = nullptr;
+    Scene* nextScene       = nullptr;
     bool   isTransitioning = false;
 
 public:
+    SceneManager() = default;
+
     void registerScene(SceneType type, std::unique_ptr<Scene> scene) {
         scenes[type] = std::move(scene);
     }
@@ -49,7 +49,7 @@ public:
     void changeScene(SceneType type) {
         auto it = scenes.find(type);
         if (it != scenes.end()) {
-            nextScene       = it->second.get();
+            nextScene = it->second.get();
             isTransitioning = true;
             processTransition();
         }
@@ -57,17 +57,14 @@ public:
 
     void processTransition() {
         if (!isTransitioning || !nextScene) return;
-
         if (currentScene) {
             currentScene->onExit();
             currentScene->setActive(false);
             currentScene->getWorld().clearWorld();
         }
-
         currentScene = nextScene;
         currentScene->setActive(true);
         currentScene->onEnter();
-
         nextScene       = nullptr;
         isTransitioning = false;
     }
@@ -82,7 +79,7 @@ public:
             currentScene->render(dt);
     }
 
-    Scene*  getCurrentScene()  { return currentScene; }
-    World*  getCurrentWorld()  { return currentScene ? &currentScene->getWorld() : nullptr; }
-    bool    isInTransition()   const { return isTransitioning; }
+    Scene* getCurrentScene()  { return currentScene; }
+    World* getCurrentWorld()  { return currentScene ? &currentScene->getWorld() : nullptr; }
+    bool   isInTransition()   const { return isTransitioning; }
 };

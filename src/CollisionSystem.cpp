@@ -1,113 +1,98 @@
 #include "../include/Engine.hpp"
 #include <cmath>
+#include <algorithm>
 
-struct LayerTagInfo {
-    int       layer = 0;
-    EntityTag tag   = EntityTag::NONE;
-    bool      valid = false;
-};
+struct LayerTagInfo { int layer=0; EntityTag tag=EntityTag::NONE; bool valid=false; };
 
-static LayerTagInfo getInfo(Entity e, World& world) {
+static LayerTagInfo getInfo(Entity e, World& w) {
     LayerTagInfo info;
-    auto* spr = world.getComponent<SpriteComponent>(e);
-    if (!spr) return info;
-    info.layer = spr->layer;
-    info.tag   = spr->tag;
-    info.valid = true;
+    if (auto* s = w.getComponent<SpriteComponent>(e)) { info.layer=s->layer; info.tag=s->tag; info.valid=true; }
+    else if (auto* c = w.getComponent<CircleComponent>(e)) { info.layer=c->layer; info.tag=c->tag; info.valid=true; }
+    else if (auto* r = w.getComponent<RectangleComponent>(e)) { info.layer=r->layer; info.tag=r->tag; info.valid=true; }
     return info;
 }
 
-static bool canCollide(const BoxColliderComponent& a, const LayerTagInfo& bInfo) {
-    if (!a.TagsCollided.empty()) {
-        for (int t : a.TagsCollided)
-            if (t == (int)bInfo.tag) return true;
-        return false;
-    }
-    return true;
+static bool canCollide(const BoxColliderComponent& col, const LayerTagInfo& b) {
+    if (!b.valid) return false;
+    bool layerOk = col.layersCollided.empty() ||
+        std::find(col.layersCollided.begin(), col.layersCollided.end(), b.layer) != col.layersCollided.end();
+    bool tagOk = col.TagsCollided.empty() ||
+        std::find(col.TagsCollided.begin(), col.TagsCollided.end(), (int)b.tag) != col.TagsCollided.end();
+    return layerOk && tagOk;
 }
 
-static bool checkAABB(Entity ea, Entity eb, World& world,
-                      const BoxColliderComponent& a, const BoxColliderComponent& b) {
-    auto* pa = world.getComponent<PositionComponent>(ea);
-    auto* pb = world.getComponent<PositionComponent>(eb);
-    if (!pa || !pb) return false;
-    return (pa->x - a.width/2.f < pb->x + b.width/2.f  &&
-            pa->x + a.width/2.f > pb->x - b.width/2.f  &&
-            pa->y - a.height/2.f < pb->y + b.height/2.f &&
-            pa->y + a.height/2.f > pb->y - b.height/2.f);
+static bool rectRect(Entity A, Entity B, World& w, const BoxColliderComponent& bA, const BoxColliderComponent& bB) {
+    auto* pA = w.getComponent<PositionComponent>(A);
+    auto* pB = w.getComponent<PositionComponent>(B);
+    if (!pA || !pB) return false;
+    return pA->x < pB->x+bB.width && pA->x+bA.width > pB->x &&
+           pA->y < pB->y+bB.height && pA->y+bA.height > pB->y;
 }
 
-static bool checkCircles(Entity ea, Entity eb, World& world,
-                         const BoxColliderComponent& a, const BoxColliderComponent& b) {
-    auto* pa = world.getComponent<PositionComponent>(ea);
-    auto* pb = world.getComponent<PositionComponent>(eb);
-    if (!pa || !pb) return false;
-    float dx = pa->x - pb->x, dy = pa->y - pb->y;
-    return sqrtf(dx*dx + dy*dy) < (a.radius + b.radius);
+static bool circCirc(Entity A, Entity B, World& w, const BoxColliderComponent& bA, const BoxColliderComponent& bB) {
+    auto* pA = w.getComponent<PositionComponent>(A);
+    auto* pB = w.getComponent<PositionComponent>(B);
+    if (!pA || !pB) return false;
+    float dx = pA->x - pB->x, dy = pA->y - pB->y;
+    float dist = std::sqrt(dx*dx + dy*dy);
+    return dist < (bA.radius + bB.radius);
 }
 
-static bool checkCircleRect(Entity circ, Entity rect, World& world,
-                             const BoxColliderComponent& c, const BoxColliderComponent& r) {
-    auto* pc = world.getComponent<PositionComponent>(circ);
-    auto* pr = world.getComponent<PositionComponent>(rect);
-    if (!pc || !pr) return false;
-    float nx = std::max(pr->x - r.width/2.f,  std::min(pc->x, pr->x + r.width/2.f));
-    float ny = std::max(pr->y - r.height/2.f, std::min(pc->y, pr->y + r.height/2.f));
-    float dx = pc->x - nx, dy = pc->y - ny;
-    return sqrtf(dx*dx + dy*dy) < c.radius;
+static bool rectCirc(Entity R, Entity C, World& w, const BoxColliderComponent& bR, const BoxColliderComponent& bC) {
+    auto* pR = w.getComponent<PositionComponent>(R);
+    auto* pC = w.getComponent<PositionComponent>(C);
+    if (!pR || !pC) return false;
+    float cx = pC->x, cy = pC->y;
+    float nearX = std::max(pR->x, std::min(cx, pR->x + bR.width));
+    float nearY = std::max(pR->y, std::min(cy, pR->y + bR.height));
+    float dx = cx - nearX, dy = cy - nearY;
+    return (dx*dx + dy*dy) < (bC.radius * bC.radius);
 }
 
-void CollisionSystem::update(float dt)
-{
+void CollisionSystem::update(float dt) {
+    (void)dt;
     if (!world) return;
     auto& colliders = world->getContainer<BoxColliderComponent>();
-
     for (Entity e : colliders.getEntities())
         if (auto* c = colliders.get(e)) c->EntityCollided.clear();
 
     std::vector<Entity> entities = colliders.getEntities();
+    for (size_t a = 0; a < entities.size(); a++) {
+        Entity eA = entities[a];
+        auto* cA = colliders.get(eA); if (!cA) continue;
+        LayerTagInfo iA = getInfo(eA, *world); if (!iA.valid) continue;
 
-    for (size_t a = 0; a < entities.size(); ++a) {
-        Entity ea  = entities[a];
-        auto*  boxA = colliders.get(ea);
-        if (!boxA) continue;
-        LayerTagInfo infoA = getInfo(ea, *world);
-        if (!infoA.valid) continue;
+        for (size_t b = a+1; b < entities.size(); b++) {
+            Entity eB = entities[b];
+            auto* cB = colliders.get(eB); if (!cB) continue;
+            LayerTagInfo iB = getInfo(eB, *world); if (!iB.valid) continue;
 
-        for (size_t b = a + 1; b < entities.size(); ++b) {
-            Entity eb   = entities[b];
-            auto*  boxB  = colliders.get(eb);
-            if (!boxB) continue;
-            LayerTagInfo infoB = getInfo(eb, *world);
-            if (!infoB.valid) continue;
-
-            bool aColB = canCollide(*boxA, infoB);
-            bool bColA = canCollide(*boxB, infoA);
+            bool aColB = canCollide(*cA, iB);
+            bool bColA = canCollide(*cB, iA);
             if (!aColB && !bColA) continue;
 
-            bool hit = false;
-            if      (boxA->isCircle &&  boxB->isCircle) hit = checkCircles(ea, eb, *world, *boxA, *boxB);
-            else if (!boxA->isCircle && !boxB->isCircle) hit = checkAABB(ea, eb, *world, *boxA, *boxB);
-            else if (boxA->isCircle)                     hit = checkCircleRect(ea, eb, *world, *boxA, *boxB);
-            else                                         hit = checkCircleRect(eb, ea, *world, *boxB, *boxA);
+            bool col = false;
+            if (cA->isCircle && cB->isCircle)  col = circCirc(eA,eB,*world,*cA,*cB);
+            else if (!cA->isCircle && !cB->isCircle) col = rectRect(eA,eB,*world,*cA,*cB);
+            else if (cA->isCircle)  col = rectCirc(eB,eA,*world,*cB,*cA);
+            else                    col = rectCirc(eA,eB,*world,*cA,*cB);
 
-            if (hit) {
-                if (aColB) boxA->EntityCollided.push_back((int)eb);
-                if (bColA) boxB->EntityCollided.push_back((int)ea);
+            if (col) {
+                if (aColB) cA->EntityCollided.push_back((int)eB);
+                if (bColA) cB->EntityCollided.push_back((int)eA);
             }
         }
     }
 }
 
-std::pair<bool, Entity> CollisionSystem::ifCollideTag(Entity e, EntityTag tag)
-{
+std::pair<bool,Entity> CollisionSystem::ifCollideTag(Entity e, int tag) {
     if (!world) return {false, Entity(0)};
     auto* col = world->getComponent<BoxColliderComponent>(e);
     if (!col) return {false, Entity(0)};
     for (int id : col->EntityCollided) {
         Entity other = static_cast<Entity>(id);
-        auto* spr = world->getComponent<SpriteComponent>(other);
-        if (spr && spr->tag == tag) return {true, other};
+        auto info = getInfo(other, *world);
+        if ((int)info.tag == tag) return {true, other};
     }
     return {false, Entity(0)};
 }

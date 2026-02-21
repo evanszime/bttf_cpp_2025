@@ -1,12 +1,11 @@
 #pragma once
 #include "System.hpp"
 #include "../Components/Sprite.hpp"
+#include "../Components/BoxCollider.hpp"
 
 class CollisionSystem : public System {
 public:
-    explicit CollisionSystem() : System() {}
+    explicit CollisionSystem() = default;
+    std::pair<bool, Entity> ifCollideTag(Entity e, int tag);
     void update(float dt) override;
-
-    // Helper: vérifie si l'entité e collide avec un tag précis
-    std::pair<bool, Entity> ifCollideTag(Entity e, EntityTag tag);
 };

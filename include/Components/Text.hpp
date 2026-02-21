@@ -1,13 +1,13 @@
 #pragma once
-#include <string>
 #include <raylib.h>
-
+#include <string>
 struct TextComponent {
-    std::string text     = "";
-    int         size     = 20;
+    std::string text      = "";
+    float       size      = 20.f;
     Color       font_color = WHITE;
-    int         layer    = 9;
-    bool        visible  = true;
-    bool        isTaping = false; // champ de saisie actif
-    bool        field    = false; // afficher le fond de champ
+    bool        isTaping  = false;
+    int         maxChars  = 100;
+    int         layer     = 9;
+    bool        field     = false;
+    bool        visible   = true;
 };

@@ -1,272 +1,319 @@
 #pragma once
 #include "Engine.hpp"
+#include "IGame.hpp"
 #include <memory>
+#include <sstream>
+#include <cmath>
 
-// Déclaration forward de createWeapon
+// Forward
 std::shared_ptr<IWeapon> createWeapon(const std::string& type, World* world);
 
 // ================================================================
 // MENU SCENE
 // ================================================================
 class MenuScene : public Scene {
-private:
     SceneManager*    _sm;
-    GlobalComponent* _global;
-    // Entités UI
-    Entity _btnStart{0}, _btnSettings{0}, _btnQuit{0}, _title{0};
+    GlobalComponent* _g;
+    float _anim=0;
 public:
-    MenuScene(SceneManager& sm, GlobalComponent& g)
-        : Scene("Menu"), _sm(&sm), _global(&g) {}
-
-    void onEnter() override {
-        // Fond
-        Entity bg = world.createEntity();
-        PositionComponent bpos; bpos.x = 960; bpos.y = 540;
-        world.addComponent(bg, bpos);
-        SpriteComponent bspr;
-        bspr.texturePath = 10; // << ASSET: assets/textures/background.png
-        bspr.tag = EntityTag::UI; bspr.layer = 0;
-        world.addComponent(bg, bspr);
-
-        // Titre
-        _title = world.createEntity();
-        PositionComponent tpos; tpos.x = 760; tpos.y = 180;
-        world.addComponent(_title, tpos);
-        TextComponent ttxt;
-        ttxt.text = "ZIMEX"; ttxt.size = 80;
-        ttxt.font_color = {255, 220, 0, 255}; ttxt.layer = 5;
-        world.addComponent(_title, ttxt);
-
-        // Sous-titre
-        Entity sub = world.createEntity();
-        PositionComponent spos; spos.x = 760; spos.y = 280;
-        world.addComponent(sub, spos);
-        TextComponent stxt;
-        stxt.text = "Brotato-style Survival"; stxt.size = 28;
-        stxt.font_color = WHITE; stxt.layer = 5;
-        world.addComponent(sub, stxt);
-
-        // Bouton Start
-        _btnStart = world.createEntity();
-        PositionComponent p1; p1.x = 810; p1.y = 420;
-        world.addComponent(_btnStart, p1);
-        TextComponent t1; t1.text = "> Start Game"; t1.size = 40;
-        t1.font_color = {100, 255, 100, 255}; t1.layer = 5;
-        world.addComponent(_btnStart, t1);
-
-        // Bouton Settings
-        _btnSettings = world.createEntity();
-        PositionComponent p2; p2.x = 810; p2.y = 500;
-        world.addComponent(_btnSettings, p2);
-        TextComponent t2; t2.text = "> Settings"; t2.size = 40;
-        t2.font_color = WHITE; t2.layer = 5;
-        world.addComponent(_btnSettings, t2);
-
-        // Bouton Quit
-        _btnQuit = world.createEntity();
-        PositionComponent p3; p3.x = 810; p3.y = 580;
-        world.addComponent(_btnQuit, p3);
-        TextComponent t3; t3.text = "> Quit"; t3.size = 40;
-        t3.font_color = {255, 80, 80, 255}; t3.layer = 5;
-        world.addComponent(_btnQuit, t3);
-
-        // Instructions
-        Entity inst = world.createEntity();
-        PositionComponent ipos; ipos.x = 760; ipos.y = 900;
-        world.addComponent(inst, ipos);
-        TextComponent itxt;
-        itxt.text = "WASD: Move  |  Mouse: Aim  |  LClick: Shoot  |  R: Reload  |  RClick/Scroll: Swap Weapon";
-        itxt.size = 20; itxt.font_color = GRAY; itxt.layer = 5;
-        world.addComponent(inst, itxt);
-    }
-
-    void onExit() override { world.clearWorld(); }
+    MenuScene(SceneManager& sm, GlobalComponent& g):Scene("Menu"),_sm(&sm),_g(&g){}
+    void onEnter() override {_anim=0;}
+    void onExit()  override {}
 
     void update(float dt) override {
-        if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) return;
-        Vector2 m = GetMousePosition();
-
-        // Hit test simple sur les boutons (zone approximative)
-        auto hitBtn = [&](float bx, float by, float w, float h) {
-            return m.x >= bx && m.x <= bx+w && m.y >= by && m.y <= by+h;
-        };
-
-        if (hitBtn(810, 420, 300, 50)) _sm->changeScene(SceneType::GAME);
-        if (hitBtn(810, 500, 300, 50)) _sm->changeScene(SceneType::SETTINGS);
-        if (hitBtn(810, 580, 200, 50)) CloseWindow();
+        _anim+=dt;
+        if(!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) return;
+        Vector2 m=GetMousePosition();
+        float nx=m.x/GetScreenWidth(), ny=m.y/GetScreenHeight();
+        if(nx>=0.33f&&nx<=0.67f&&ny>=0.39f&&ny<=0.46f) _sm->changeScene(SceneType::GAME);
+        if(nx>=0.33f&&nx<=0.67f&&ny>=0.49f&&ny<=0.56f) _sm->changeScene(SceneType::SETTINGS);
+        if(nx>=0.33f&&nx<=0.67f&&ny>=0.59f&&ny<=0.66f) CloseWindow();
     }
 
-    void render(float dt) override {}
+    void render(float dt) override {
+        (void)dt;
+        int sw=GetScreenWidth(), sh=GetScreenHeight();
+
+        // Fond animé
+        DrawRectangle(0,0,sw,sh,{5,5,15,255});
+        for(int gx=0;gx<sw;gx+=sw/24)
+            DrawLine(gx,0,gx,sh,{12,12,30,255});
+        for(int gy=0;gy<sh;gy+=sh/18)
+            DrawLine(0,gy,sw,gy,{12,12,30,255});
+
+        // Titre pulsant
+        float pulse=1.f+0.04f*std::sin(_anim*3.f);
+        int tsz=(int)(sh/7*pulse);
+        const char* title="ZIMEX";
+        int tw=MeasureText(title,tsz);
+        DrawText(title,sw/2-tw/2+3,sh/9+3,tsz,{80,40,0,180});
+        DrawText(title,sw/2-tw/2,  sh/9,  tsz,YELLOW);
+
+        const char* sub="Survival Brotato";
+        int ssz=sh/28; int sw2=MeasureText(sub,ssz);
+        DrawText(sub,sw/2-sw2/2,(int)(sh*0.27f),ssz,LIGHTGRAY);
+
+        // Boutons
+        struct Btn{float ny1,ny2;const char*lbl;Color bg;Color fg;};
+        Btn btns[]={
+            {0.39f,0.46f,"> Jouer",     {30,90,30,220},GREEN},
+            {0.49f,0.56f,"> Paramètres",{20,20,80,220},WHITE},
+            {0.59f,0.66f,"> Quitter",   {90,20,20,220},RED},
+            {0.69f,0.76f,"> Infos",   {90,20,20,220},YELLOW},  // hover
+
+        };
+        for(auto& b:btns){
+            int bx=(int)(sw*0.33f),by=(int)(sh*b.ny1);
+            int bw=(int)(sw*0.34f),bh=(int)(sh*(b.ny2-b.ny1));
+            DrawRectangle(bx,by,bw,bh,b.bg);
+            DrawRectangleLines(bx,by,bw,bh,{80,80,80,200});
+            int lsz=bh*6/10;
+            DrawText(b.lbl,bx+14,by+bh/2-lsz/2,lsz,b.fg);
+        }
+    }
 };
+
+
+
+
+// ================================================================
+// INFOS SCENE
+// ================================================================
+class infoScene : public Scene {
+    SceneManager*  _sm;
+    GlobalComponent* _g;
+    float _brightness=1.f;
+public:
+    infoScene(SceneManager& sm, GlobalComponent& g):Scene("Infos"),_sm(&sm),_g(&g){}
+    void onEnter() override {}
+    void onExit()  override {}
+
+    void update(float dt) override {
+        (void)dt;
+        if(IsKeyPressed(KEY_F11)){_g->isFullscreen=!_g->isFullscreen;ToggleFullscreen();}
+        // Retour
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+            float ny=GetMousePosition().y/GetScreenHeight();
+            if(ny>=0.80f&&ny<=0.90f) _sm->changeScene(SceneType::MENU);
+        }
+        if(IsKeyPressed(KEY_ESCAPE)) _sm->changeScene(SceneType::MENU);
+    }
+
+    void render(float dt) override {
+        (void)dt;
+        int sw=GetScreenWidth(),sh=GetScreenHeight();
+        DrawRectangle(0,0,sw,sh,{5,5,15,255});
+        // Overlay luminosité
+        if(_brightness<1.f){
+            unsigned char a=(unsigned char)((1.f-_brightness)*200.f);
+            DrawRectangle(0,0,sw,sh,{0,0,0,a});
+        }
+        
+        // Guide des touches
+        int gy=(int)(sh*0.71f);
+        int gsz=sh/32;
+        int col1=sw/20, col2=(int)(sw*0.35f);
+        Color title_c={180,180,255,255};
+        Color key_c  ={255,220,50,255};
+        Color val_c  ={200,200,200,255};
+
+        DrawText("── CONTRÔLES ──",col1,gy,gsz,title_c);
+        DrawText("── ARMES ──",col2,gy,gsz,title_c);
+        gy+=gsz+4;
+
+        struct KV{const char*k;const char*v;};
+        KV ctrl[]={
+            {"WASD / Flèches","Déplacer le joueur"},
+            {"Clic Gauche (maintenu)","Tirer"},
+            {"Clic Droit / ScrollWheel","Changer d'arme"},
+            {"R","Recharger"},
+            {"E","Ramasser un pickup"},
+            {"F11","Plein écran"},
+            {"Echap","Quitter"},
+        };
+        KV weapons[]={
+            {"Pistol","20 dmg  |  12 balles  |  semi-auto"},
+            {"Shotgun","8 dmg x7  |  6 balles  |  cône 40°"},
+            {"Sniper","60 dmg  |  5 balles  |  perce x3"},
+            {"AK-47","12 dmg  |  30 balles  |  rafale auto"},
+            {"Bomb","80+50 dmg AoE  |  3 balles  |  explosion"},
+        };
+        KV drops[]={
+            {"Orbe VERT","Ramasser = +matériaux"},
+            {"Icône JAUNE","Recharge munitions (toutes armes)"},
+            {"Icône VERTE","Soin +50 HP"},
+            {"Icône BLEUE","Bouclier magnétique 360 HP"},
+        };
+
+        for(auto&kv:ctrl){
+            DrawText(kv.k,col1,gy,gsz-2,key_c);
+            DrawText(kv.v,col1+MeasureText(kv.k,gsz-2)+8,gy,gsz-2,val_c);
+            gy+=gsz+2;
+        }
+        gy=(int)(sh*0.71f)+gsz+4;
+        for(auto&kv:weapons){
+            DrawText(kv.k,col2,gy,gsz-2,{255,200,50,255});
+            DrawText(kv.v,col2+MeasureText(kv.k,gsz-2)+8,gy,gsz-2,val_c);
+            gy+=gsz+2;
+        }
+        gy+=gsz;
+        DrawText("── PICKUPS ──",col2,gy,gsz,title_c);
+        gy+=gsz+4;
+        for(auto&kv:drops){
+            DrawText(kv.k,col2,gy,gsz-2,key_c);
+            DrawText(kv.v,col2+MeasureText(kv.k,gsz-2)+8,gy,gsz-2,val_c);
+            gy+=gsz+2;
+        }
+    }
+};
+
 
 // ================================================================
 // SETTINGS SCENE
 // ================================================================
 class SettingsScene : public Scene {
-private:
     SceneManager*    _sm;
-    GlobalComponent* _global;
+    GlobalComponent* _g;
+    float _brightness=1.f;
 public:
-    SettingsScene(SceneManager& sm, GlobalComponent& g)
-        : Scene("Settings"), _sm(&sm), _global(&g) {}
-
-    void onEnter() override {
-        Entity t = world.createEntity();
-        PositionComponent tp; tp.x = 760; tp.y = 200;
-        world.addComponent(t, tp);
-        TextComponent tt; tt.text = "SETTINGS"; tt.size = 60;
-        tt.font_color = WHITE; tt.layer = 5;
-        world.addComponent(t, tt);
-
-        // Volume label
-        Entity vl = world.createEntity();
-        PositionComponent vp; vp.x = 760; vp.y = 380;
-        world.addComponent(vl, vp);
-        TextComponent vt; vt.text = "Volume:"; vt.size = 36;
-        vt.font_color = WHITE; vt.layer = 5;
-        world.addComponent(vl, vt);
-
-        // Fullscreen label
-        Entity fl = world.createEntity();
-        PositionComponent fp; fp.x = 760; fp.y = 480;
-        world.addComponent(fl, fp);
-        TextComponent ft;
-        ft.text = _global->isFullscreen ? "Fullscreen: ON" : "Fullscreen: OFF";
-        ft.size = 36; ft.font_color = WHITE; ft.layer = 5;
-        world.addComponent(fl, ft);
-
-        // Back
-        Entity bk = world.createEntity();
-        PositionComponent bp; bp.x = 760; bp.y = 600;
-        world.addComponent(bk, bp);
-        TextComponent bt; bt.text = "< Back to Menu"; bt.size = 36;
-        bt.font_color = {100, 200, 255, 255}; bt.layer = 5;
-        world.addComponent(bk, bt);
-    }
-
-    void onExit() override { world.clearWorld(); }
+    SettingsScene(SceneManager& sm, GlobalComponent& g):Scene("Settings"),_sm(&sm),_g(&g){}
+    void onEnter() override {}
+    void onExit()  override {}
 
     void update(float dt) override {
-        Vector2 m = GetMousePosition();
-
-        // Volume: +/- avec les touches
-        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) {
-            _global->masterVolume = std::min(1.f, _global->masterVolume + 0.1f);
-            SetMasterVolume(_global->masterVolume);
+        (void)dt;
+        // Volume
+        if(IsKeyPressed(KEY_EQUAL)||IsKeyPressed(KEY_KP_ADD))
+            SetMasterVolume(_g->masterVolume=std::min(1.f,_g->masterVolume+0.05f));
+        if(IsKeyPressed(KEY_MINUS)||IsKeyPressed(KEY_KP_SUBTRACT))
+            SetMasterVolume(_g->masterVolume=std::max(0.f,_g->masterVolume-0.05f));
+        // Luminosité (+/- sur flèches)
+        if(IsKeyPressed(KEY_UP))   _brightness=std::min(1.f,_brightness+0.05f);
+        if(IsKeyPressed(KEY_DOWN)) _brightness=std::max(0.1f,_brightness-0.05f);
+        // Fullscreen F11
+        if(IsKeyPressed(KEY_F11)){_g->isFullscreen=!_g->isFullscreen;ToggleFullscreen();}
+        // Retour
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+            float ny=GetMousePosition().y/GetScreenHeight();
+            if(ny>=0.80f&&ny<=0.90f) _sm->changeScene(SceneType::MENU);
         }
-        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) {
-            _global->masterVolume = std::max(0.f, _global->masterVolume - 0.1f);
-            SetMasterVolume(_global->masterVolume);
-        }
-
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            // Toggle fullscreen
-            if (m.x >= 760 && m.x <= 1060 && m.y >= 480 && m.y <= 530) {
-                _global->isFullscreen = !_global->isFullscreen;
-                ToggleFullscreen();
-            }
-            // Back
-            if (m.x >= 760 && m.x <= 1060 && m.y >= 600 && m.y <= 650)
-                _sm->changeScene(SceneType::MENU);
-        }
+        if(IsKeyPressed(KEY_ESCAPE)) _sm->changeScene(SceneType::MENU);
     }
 
     void render(float dt) override {
-        // Slider volume (dessiné directement)
-        int vx = 920, vy = 380, vw = 300, vh = 36;
-        DrawRectangle(vx, vy, vw, vh, DARKGRAY);
-        DrawRectangle(vx, vy, (int)(_global->masterVolume * vw), vh, GREEN);
-        DrawText(TextFormat("%.0f%%", _global->masterVolume * 100), vx + vw + 10, vy, 36, WHITE);
-        DrawText("(+/-) to adjust", vx, vy + 45, 22, GRAY);
+        (void)dt;
+        int sw=GetScreenWidth(),sh=GetScreenHeight();
+        DrawRectangle(0,0,sw,sh,{5,5,15,255});
+        // Overlay luminosité
+        if(_brightness<1.f){
+            unsigned char a=(unsigned char)((1.f-_brightness)*200.f);
+            DrawRectangle(0,0,sw,sh,{0,0,0,a});
+        }
+
+        int tsz=sh/9;
+        const char*t="PARAMÈTRES"; int tw=MeasureText(t,tsz);
+        DrawText(t,sw/2-tw/2+2,sh/10+2,tsz,{0,0,0,140});
+        DrawText(t,sw/2-tw/2,  sh/10,  tsz,WHITE);
+
+        int lsz=sh/20;
+        int lx=(int)(sw*0.18f);
+        int ly=(int)(sh*0.32f);
+        int ls=lsz+lsz/2;
+
+        // Volume
+        DrawText("Volume",lx,ly,lsz,WHITE);
+        std::string vs=std::to_string((int)(_g->masterVolume*100))+"%";
+        int bx=(int)(sw*0.42f),by=ly,bw=(int)(sw*0.40f),bh=lsz;
+        DrawRectangle(bx,by,bw,bh,DARKGRAY);
+        DrawRectangle(bx,by,(int)(bw*_g->masterVolume),bh,GREEN);
+        DrawRectangleLines(bx,by,bw,bh,WHITE);
+        DrawText(vs.c_str(),bx+bw+8,by,lsz,GREEN);
+        DrawText("+/-",lx+(int)(sw*0.18f),by,lsz-4,GRAY);
+        ly+=ls;
+
+        // Luminosité
+        DrawText("Luminosité",lx,ly,lsz,WHITE);
+        std::string bs=std::to_string((int)(_brightness*100))+"%";
+        DrawRectangle(bx,ly,bw,bh,DARKGRAY);
+        DrawRectangle(bx,ly,(int)(bw*_brightness),bh,YELLOW);
+        DrawRectangleLines(bx,ly,bw,bh,WHITE);
+        DrawText(bs.c_str(),bx+bw+8,ly,lsz,YELLOW);
+        DrawText("↑/↓",lx+(int)(sw*0.18f),ly,lsz-4,GRAY);
+        ly+=ls;
+
+        // Fullscreen
+        bool fs=_g->isFullscreen;
+        std::string fss=std::string("Plein écran  [F11]  : ")+(fs?"ON":"OFF");
+        DrawText(fss.c_str(),lx,ly,lsz,fs?GREEN:GRAY);
+        ly+=ls;
+
+        // Infos
+        DrawText("F11 = activer/désactiver le plein écran",lx,ly,lsz-4,{120,120,120,255});
+
+        // Bouton retour
+        int bky=(int)(sh*0.82f),bkh=(int)(sh*0.08f),bkw=(int)(sw*0.34f);
+        int bkx=sw/2-bkw/2;
+        DrawRectangle(bkx,bky,bkw,bkh,{20,20,80,220});
+        DrawRectangleLines(bkx,bky,bkw,bkh,{80,80,120,255});
+        const char*bk="< Retour au Menu";
+        int bksz=bkh*6/10;
+        DrawText(bk,bkx+bkw/2-MeasureText(bk,bksz)/2,bky+bkh/2-bksz/2,bksz,{100,200,255,255});
     }
 };
 
 // ================================================================
-// GAME OVER SCENE
+// GAME OVER / VICTOIRE
 // ================================================================
 class GameOverScene : public Scene {
-private:
     SceneManager* _sm;
+    bool _victory;
+    float _timer=0;
 public:
-    GameOverScene(SceneManager& sm) : Scene("GameOver"), _sm(&sm) {}
-
-    void onEnter() override {
-        Entity t = world.createEntity();
-        PositionComponent tp; tp.x = 660; tp.y = 380;
-        world.addComponent(t, tp);
-        TextComponent tt; tt.text = "GAME OVER"; tt.size = 90;
-        tt.font_color = RED; tt.layer = 5;
-        world.addComponent(t, tt);
-
-        Entity b = world.createEntity();
-        PositionComponent bp; bp.x = 810; bp.y = 560;
-        world.addComponent(b, bp);
-        TextComponent bt; bt.text = "Press ENTER to return to menu";
-        bt.size = 32; bt.font_color = WHITE; bt.layer = 5;
-        world.addComponent(b, bt);
-    }
-
-    void onExit() override { world.clearWorld(); }
-
+    GameOverScene(SceneManager& sm, bool victory=false)
+        :Scene(victory?"Victory":"GameOver"),_sm(&sm),_victory(victory){}
+    void onEnter() override {_timer=0;}
+    void onExit()  override {}
     void update(float dt) override {
-        if (IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        _timer+=dt;
+        if(_timer>0.8f&&(IsKeyPressed(KEY_ENTER)||IsMouseButtonPressed(MOUSE_LEFT_BUTTON)))
             _sm->changeScene(SceneType::MENU);
     }
+    void render(float dt) override {
+        (void)dt;
+        int sw=GetScreenWidth(),sh=GetScreenHeight();
+        DrawRectangle(0,0,sw,sh,{5,5,15,255});
+        // Effet scan lines
+        for(int y=0;y<sh;y+=4) DrawRectangle(0,y,sw,2,{0,0,0,40});
 
-    void render(float dt) override {}
+        int tsz=sh/7;
+        const char* t=_victory?"VICTOIRE !":"GAME OVER";
+        Color tc=_victory?YELLOW:RED;
+        // Ombre
+        DrawText(t,sw/2-MeasureText(t,tsz)/2+4,sh/3+4,tsz,{0,0,0,200});
+        DrawText(t,sw/2-MeasureText(t,tsz)/2,  sh/3,  tsz,tc);
+
+        if(_victory){
+            const char*s="20 Vagues Complétées !";
+            int ssz=sh/16; DrawText(s,sw/2-MeasureText(s,ssz)/2,(int)(sh*0.55f),ssz,GREEN);
+        }
+
+        if(_timer>0.8f){
+            float alpha=std::min(1.f,(_timer-0.8f)/0.5f);
+            const char* sub="Appuie sur ENTRÉE ou clique pour revenir au menu";
+            int ssz=sh/26;
+            Color sc={255,255,255,(unsigned char)(alpha*255)};
+            DrawText(sub,sw/2-MeasureText(sub,ssz)/2,(int)(sh*0.72f),ssz,sc);
+        }
+    }
 };
 
 // ================================================================
-// VICTORY SCENE
-// ================================================================
-class VictoryScene : public Scene {
-private:
-    SceneManager* _sm;
-public:
-    VictoryScene(SceneManager& sm) : Scene("Victory"), _sm(&sm) {}
-
-    void onEnter() override {
-        Entity t = world.createEntity();
-        PositionComponent tp; tp.x = 620; tp.y = 350;
-        world.addComponent(t, tp);
-        TextComponent tt; tt.text = "YOU SURVIVED!"; tt.size = 80;
-        tt.font_color = {255, 220, 0, 255}; tt.layer = 5;
-        world.addComponent(t, tt);
-
-        Entity s = world.createEntity();
-        PositionComponent sp; sp.x = 760; sp.y = 460;
-        world.addComponent(s, sp);
-        TextComponent st; st.text = "20 Waves Completed!"; st.size = 40;
-        st.font_color = WHITE; st.layer = 5;
-        world.addComponent(s, st);
-
-        Entity b = world.createEntity();
-        PositionComponent bp; bp.x = 810; bp.y = 580;
-        world.addComponent(b, bp);
-        TextComponent bt; bt.text = "Press ENTER to play again";
-        bt.size = 32; bt.font_color = {100, 255, 100, 255}; bt.layer = 5;
-        world.addComponent(b, bt);
-    }
-
-    void onExit() override { world.clearWorld(); }
-
-    void update(float dt) override {
-        if (IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-            _sm->changeScene(SceneType::MENU);
-    }
-
-    void render(float dt) override {}
-};
-
-// ================================================================
-// GAME SCENE - scène principale Brotato
+// GAME SCENE
 // ================================================================
 class GameScene : public Scene {
-private:
     SceneManager*    _sm;
-    GlobalComponent* _global;
+    GlobalComponent* _g;
 
-    // Systems
     RenderSystem    _render;
     InputSystem     _input;
     CollisionSystem _collision;
@@ -279,127 +326,220 @@ private:
     WaveSystem      _wave;
     SoundSystem     _sound;
 
+    InputContext _ctx;
     Entity _player{0};
-    Entity _waveEntity{0};
+    Entity _waveEnt{0};
 
-    // HUD data
-    float  _hudHp = 100.f, _hudMaxHp = 100.f;
-    int    _hudAmmo = 0, _hudMaxAmmo = 0;
-    std::string _hudWeaponName = "Pistol";
-    int    _hudWave = 1;
-    int    _hudMaterials = 0;
+    // HUD cache
+    float _hp=200,_maxHp=200;
+    float _shieldHp=0,_shieldMax=360;
+    bool  _hasShield=false;
+    int   _ammo=0,_maxAmmo=0;
+    std::string _wname="Pistol";
+    std::string _w2name="Shotgun";
+    bool  _reloading=false;
+    float _reloadPct=0;
+    int   _wave_n=1,_mats=0,_kills=0;
+    WaveState _wstate=WaveState::FIGHTING;
+    float _betweenT=0,_betweenMax=4;
 
 public:
     GameScene(SceneManager& sm, GlobalComponent& g)
-        : Scene("Game"), _sm(&sm), _global(&g) {}
+        :Scene("Game"),_sm(&sm),_g(&g){}
 
-    void initSystems() {
-        auto initSys = [&](System& s) { s.setWorld(world); };
-        initSys(_render);   _render.setGlobal(*_global);    _render.initRenderTarget();
-        initSys(_input);
-        initSys(_collision);
-        initSys(_physics);
-        initSys(_health);
-        initSys(_animation); _animation.setGlobal(*_global);
-        initSys(_weapon);   _weapon.setGlobal(*_global);
-        initSys(_enemy);    _enemy.setGlobal(*_global);     _enemy.setSceneManager(*_sm);
-        initSys(_bullet);
-        initSys(_wave);     _wave.setSceneManager(*_sm);    _wave.setGlobal(*_global);
-        initSys(_sound);    _sound.setGlobal(*_global);
+    // ── Init ────────────────────────────────────────────────────
+    void initSystems(){
+        auto W=[&](System& s){s.setWorld(world);};
+        W(_render);    _render.setGlobal(*_g); _render.initRenderTarget();
+        W(_input);
+        W(_collision);
+        W(_physics);
+        W(_health);
+        W(_animation); _animation.setGlobal(*_g);
+        W(_weapon);    _weapon.setGlobal(*_g);
+        W(_enemy);     _enemy.setGlobal(*_g); _enemy.setSceneManager(*_sm);
+        W(_bullet);
+        W(_wave);      _wave.setGlobal(*_g); _wave.setSceneManager(*_sm);
+        W(_sound);     _sound.setGlobal(*_g);
+
+        // WASD mouvement
+        _ctx.bind(KEY_W,[](World& w,Entity e){
+            auto*p=w.getComponent<PositionComponent>(e);
+            auto*pl=w.getComponent<PlayerComponent>(e);
+            if(p&&pl) p->y-=pl->speed*GetFrameTime();
+        });
+        _ctx.bind(KEY_S,[](World& w,Entity e){
+            auto*p=w.getComponent<PositionComponent>(e);
+            auto*pl=w.getComponent<PlayerComponent>(e);
+            if(p&&pl) p->y+=pl->speed*GetFrameTime();
+        });
+        _ctx.bind(KEY_A,[](World& w,Entity e){
+            auto*p=w.getComponent<PositionComponent>(e);
+            auto*pl=w.getComponent<PlayerComponent>(e);
+            if(p&&pl) p->x-=pl->speed*GetFrameTime();
+        });
+        _ctx.bind(KEY_D,[](World& w,Entity e){
+            auto*p=w.getComponent<PositionComponent>(e);
+            auto*pl=w.getComponent<PlayerComponent>(e);
+            if(p&&pl) p->x+=pl->speed*GetFrameTime();
+        });
+        // Flèches aussi
+        _ctx.bind(KEY_UP,[](World& w,Entity e){
+            auto*p=w.getComponent<PositionComponent>(e);
+            auto*pl=w.getComponent<PlayerComponent>(e);
+            if(p&&pl) p->y-=pl->speed*GetFrameTime();
+        });
+        _ctx.bind(KEY_DOWN,[](World& w,Entity e){
+            auto*p=w.getComponent<PositionComponent>(e);
+            auto*pl=w.getComponent<PlayerComponent>(e);
+            if(p&&pl) p->y+=pl->speed*GetFrameTime();
+        });
+        _ctx.bind(KEY_LEFT,[](World& w,Entity e){
+            auto*p=w.getComponent<PositionComponent>(e);
+            auto*pl=w.getComponent<PlayerComponent>(e);
+            if(p&&pl) p->x-=pl->speed*GetFrameTime();
+        });
+        _ctx.bind(KEY_RIGHT,[](World& w,Entity e){
+            auto*p=w.getComponent<PositionComponent>(e);
+            auto*pl=w.getComponent<PlayerComponent>(e);
+            if(p&&pl) p->x+=pl->speed*GetFrameTime();
+        });
+        _input.setInputContext(&_ctx);
     }
 
-    void spawnPlayer() {
-        _player = world.createEntity();
+    void spawnBackground(){
+        // Fond
+        Entity bg=world.createEntity();
+        PositionComponent p; p.x=0; p.y=0; world.addComponent(bg,p);
+        RectangleComponent r; r.width=1920;r.height=1080;
+        r.inlineColor={5,5,15,255};r.tickness=0;r.layer=0;
+        world.addComponent(bg,r);
+        // Grille
+        for(int gx=0;gx<1920;gx+=64){
+            Entity gl=world.createEntity();
+            PositionComponent gp; gp.x=(float)gx;gp.y=0; world.addComponent(gl,gp);
+            RectangleComponent gr; gr.width=1;gr.height=1080;
+            gr.inlineColor={14,14,32,255};gr.tickness=0;gr.layer=0;
+            world.addComponent(gl,gr);
+        }
+        for(int gy=0;gy<1080;gy+=64){
+            Entity gl=world.createEntity();
+            PositionComponent gp; gp.x=0;gp.y=(float)gy; world.addComponent(gl,gp);
+            RectangleComponent gr; gr.width=1920;gr.height=1;
+            gr.inlineColor={14,14,32,255};gr.tickness=0;gr.layer=0;
+            world.addComponent(gl,gr);
+        }
+    }
 
-        PositionComponent pos; pos.x = 960.f; pos.y = 540.f;
-        world.addComponent(_player, pos);
+    void spawnPlayer(){
+        _player=world.createEntity();
+        PositionComponent pos; pos.x=960;pos.y=540; world.addComponent(_player,pos);
 
-        HealthComponent hp; hp.hp = hp.maxHp = 100.f;
-        world.addComponent(_player, hp);
+        // 200 HP
+        HealthComponent hp; hp.hp=hp.maxHp=200.f; world.addComponent(_player,hp);
 
-        RigidbodyComponent rb;
-        world.addComponent(_player, rb);
+        SpriteComponent spr; spr.texturePath=0;
+        float tw=32,th=32;
+        if((int)_g->_allSprites.size()>0){
+            tw=(float)_g->_allSprites[0].width; th=(float)_g->_allSprites[0].height;
+        }
+        spr.left=0;spr.top=0;spr.width=tw;spr.height=th;spr.scale=2.f;
+        spr.offsetX=-tw*spr.scale/2.f; spr.offsetY=-th*spr.scale/2.f;
+        spr.tag=EntityTag::PLAYER; spr.layer=2; world.addComponent(_player,spr);
 
-        SpriteComponent spr;
-        spr.texturePath = 0; // << ASSET: assets/textures/player.png
-        spr.width = 32.f; spr.height = 32.f;
-        spr.tag = EntityTag::PLAYER; spr.layer = 2;
-        spr.offsetX = -16.f; spr.offsetY = -16.f;
-        world.addComponent(_player, spr);
+        BoxColliderComponent col; col.isCircle=true; col.radius=18.f;
+        col.TagsCollided={(int)EntityTag::BULLET_EN,(int)EntityTag::PICKUP,
+                          (int)EntityTag::XP_ORB,  (int)EntityTag::ENEMY,
+                          (int)EntityTag::BOSS,    (int)EntityTag::PICKUP_AMMO,
+                          (int)EntityTag::PICKUP_HP,(int)EntityTag::PICKUP_SHIELD};
+        world.addComponent(_player,col);
+        world.addComponent(_player,InputComponent{});
 
-        BoxColliderComponent col;
-        col.isCircle = true; col.radius = 14.f;
-        col.TagsCollided = {
-            (int)EntityTag::BULLET_EN,
-            (int)EntityTag::PICKUP,
-            (int)EntityTag::XP_ORB,
-        };
-        world.addComponent(_player, col);
+        PlayerComponent pl; pl.speed=200.f; world.addComponent(_player,pl);
 
-        InputComponent inp;
-        world.addComponent(_player, inp);
-
-        PlayerComponent pl;
-        world.addComponent(_player, pl);
-
-        // Arme de départ: pistol
+        // Armes de départ : slot0=Pistol, slot1=Shotgun
         WeaponComponent wc;
-        wc.currentWeapon = createWeapon("pistol", &world);
-        wc.secondWeapon  = createWeapon("shotgun", &world);
-        world.addComponent(_player, wc);
+        wc.slots[0]={createWeapon("pistol",&world),"pistol"};
+        wc.slots[1]={createWeapon("shotgun",&world),"shotgun"};
+        wc.activeSlot=0;
+        world.addComponent(_player,wc);
     }
 
-    void spawnWaveController() {
-        _waveEntity = world.createEntity();
-        PositionComponent wp; wp.x = 0; wp.y = 0;
-        world.addComponent(_waveEntity, wp);
-
-        WaveComponent wc;
-        wc.currentWave = 1;
-        wc.state       = WaveState::FIGHTING;
-        wc.enemiesLeft = wc.baseEnemiesPerWave;
-        wc.spawnRate   = 1.5f;
-        wc.waveDuration= 30.f;
-        world.addComponent(_waveEntity, wc);
+    void spawnWave(){
+        _waveEnt=world.createEntity();
+        PositionComponent p; world.addComponent(_waveEnt,p);
+        WaveComponent wc; wc.currentWave=1;wc.state=WaveState::FIGHTING;
+        wc.enemiesLeft=10;wc.spawnRate=1.2f;wc.betweenMax=4.f;
+        world.addComponent(_waveEnt,wc);
     }
 
-    void spawnPickups() {
-        // Spawn 2 armes au sol au début
-        auto spawnPickup = [&](float x, float y, const std::string& type, int texIdx) {
-            Entity e = world.createEntity();
-            PositionComponent pp; pp.x = x; pp.y = y;
-            world.addComponent(e, pp);
-            SpriteComponent ps;
-            ps.texturePath = texIdx;
-            ps.width = 24.f; ps.height = 24.f;
-            ps.tag = EntityTag::PICKUP; ps.layer = 1;
-            world.addComponent(e, ps);
-            BoxColliderComponent pc;
-            pc.isCircle = true; pc.radius = 16.f;
-            pc.TagsCollided = { (int)EntityTag::PLAYER };
-            world.addComponent(e, pc);
-            WeaponComponent wc;
-            wc.isPickup = true; wc.pickupWeaponType = type;
-            world.addComponent(e, wc);
-        };
-
-        spawnPickup(700, 400, "sniper", 7);  // << ASSET: pickup_sniper.png
-        spawnPickup(1200, 650, "rocket", 8); // << ASSET: pickup_rocket.png
+    void spawnPickupWeapon(float x,float y,const std::string& type,int tex){
+        Entity e=world.createEntity();
+        PositionComponent p; p.x=x;p.y=y; world.addComponent(e,p);
+        float tw=24,th=24;
+        if((int)_g->_allSprites.size()>tex){tw=(float)_g->_allSprites[tex].width;th=(float)_g->_allSprites[tex].height;}
+        SpriteComponent s; s.texturePath=tex; s.width=tw;s.height=th; s.scale=2.f;
+        s.offsetX=-tw*s.scale/2.f; s.offsetY=-th*s.scale/2.f;
+        s.tag=EntityTag::PICKUP; s.layer=1; world.addComponent(e,s);
+        BoxColliderComponent c; c.isCircle=true; c.radius=22.f;
+        c.TagsCollided={(int)EntityTag::PLAYER}; world.addComponent(e,c);
+        WeaponComponent wc; wc.isPickup=true; wc.pickupWeaponType=type;
+        world.addComponent(e,wc);
     }
 
     void onEnter() override {
         initSystems();
+        spawnBackground();
         spawnPlayer();
-        spawnWaveController();
-        spawnPickups();
+        spawnWave();
+        // Pickups d'armes initiaux sur la carte
+        spawnPickupWeapon(350,250,"sniper",7);
+        spawnPickupWeapon(1570,830,"bomb",  8);
+        spawnPickupWeapon(1570,250,"ak47",  6);
     }
+    void onExit() override { world.clearWorld(); _ctx.clear(); }
 
-    void onExit() override { world.clearWorld(); }
-
+    // ── Update ──────────────────────────────────────────────────
     void update(float dt) override {
+        // Aim
+        Vector2 m=GetMousePosition();
+        float vx=m.x*(1920.f/GetScreenWidth());
+        float vy=m.y*(1080.f/GetScreenHeight());
+        if(auto*pos=world.getComponent<PositionComponent>(_player))
+        if(auto*spr=world.getComponent<SpriteComponent>(_player))
+            spr->rotation=std::atan2(vy-pos->y,vx-pos->x)*180.f/3.14159f;
+
+        // Tir (maintenu pour AK47)
+        if(IsMouseButtonDown(MOUSE_LEFT_BUTTON)){
+            auto*pos=world.getComponent<PositionComponent>(_player);
+            auto*wc =world.getComponent<WeaponComponent>(_player);
+            if(pos&&wc&&wc->current()) wc->current()->fire(pos->x,pos->y,vx,vy);
+        }
+        // Swap clic droit ou scroll
+        if(IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)||GetMouseWheelMove()!=0){
+            auto*wc=world.getComponent<WeaponComponent>(_player);
+            if(wc) wc->swap();
+        }
+        // Reload R
+        if(IsKeyPressed(KEY_R)){
+            auto*wc=world.getComponent<WeaponComponent>(_player);
+            if(wc&&wc->current()) wc->current()->reload();
+        }
+        // Pickup E (armes)
+        if(IsKeyPressed(KEY_E)) doPickupWeapon();
+
+        // Echap = pause / retour menu
+        if(IsKeyPressed(KEY_ESCAPE)) { _sm->changeScene(SceneType::MENU); return; }
+
         _input.update(dt);
+
+        // Clamp joueur
+        if(auto*p=world.getComponent<PositionComponent>(_player)){
+            p->x=std::max(30.f,std::min(p->x,1890.f));
+            p->y=std::max(30.f,std::min(p->y,1050.f));
+        }
+
         _collision.update(dt);
-        _physics.update(dt);
         _bullet.update(dt);
         _enemy.update(dt);
         _wave.update(dt);
@@ -407,130 +547,253 @@ public:
         _sound.update(dt);
         _animation.update(dt);
 
-        // Gestion pickup arme
-        handlePickups();
-        // Gestion dégâts joueur
         handlePlayerDamage(dt);
-        // Vérif game over
-        checkGameOver();
-        // Sync HUD
+        handleInvinc(dt);
+        collectPickups();
+        checkDeath();
         syncHUD();
     }
 
-    void handlePickups() {
-        auto* col = world.getComponent<BoxColliderComponent>(_player);
-        if (!col) return;
-
-        std::vector<Entity> toRemove;
-        for (int otherId : col->EntityCollided) {
-            Entity other = static_cast<Entity>(otherId);
-            auto* spr = world.getComponent<SpriteComponent>(other);
-            if (!spr || spr->tag != EntityTag::PICKUP) continue;
-            auto* pwc = world.getComponent<WeaponComponent>(other);
-            if (!pwc || !pwc->isPickup) continue;
-
-            // Donner l'arme au joueur
-            auto* plwc = world.getComponent<WeaponComponent>(_player);
-            if (plwc) {
-                plwc->secondWeapon = createWeapon(pwc->pickupWeaponType, &world);
+    // Ramasser une arme
+    void doPickupWeapon(){
+        auto*col=world.getComponent<BoxColliderComponent>(_player);
+        if(!col) return;
+        std::vector<Entity> rm;
+        for(int id:col->EntityCollided){
+            Entity o=static_cast<Entity>(id);
+            auto*spr=world.getComponent<SpriteComponent>(o);
+            if(!spr||spr->tag!=EntityTag::PICKUP) continue;
+            auto*pwc=world.getComponent<WeaponComponent>(o);
+            if(!pwc||!pwc->isPickup) continue;
+            auto*plwc=world.getComponent<WeaponComponent>(_player);
+            if(plwc){
+                // Mettre dans le slot secondaire
+                int slot=1-plwc->activeSlot;
+                plwc->slots[slot]={createWeapon(pwc->pickupWeaponType,&world),pwc->pickupWeaponType};
             }
-            toRemove.push_back(other);
+            rm.push_back(o);
         }
-        for (Entity e : toRemove) world.removeEntity(e);
-
-        // Collecter XP orbs
-        auto* pl = world.getComponent<PlayerComponent>(_player);
-        for (int otherId : col->EntityCollided) {
-            Entity other = static_cast<Entity>(otherId);
-            auto* spr = world.getComponent<SpriteComponent>(other);
-            if (!spr || spr->tag != EntityTag::XP_ORB) continue;
-            if (pl) pl->materials++;
-            world.removeEntity(other);
-        }
+        for(Entity e:rm) world.removeEntity(e);
     }
 
-    void handlePlayerDamage(float dt) {
-        auto* pl  = world.getComponent<PlayerComponent>(_player);
-        auto* col = world.getComponent<BoxColliderComponent>(_player);
-        auto* hp  = world.getComponent<HealthComponent>(_player);
-        if (!pl || !col || !hp || pl->isInvincible) return;
+    // Collecte automatique pickups HP/ammo/bouclier/xp
+    void collectPickups(){
+        auto*col=world.getComponent<BoxColliderComponent>(_player);
+        auto*pl =world.getComponent<PlayerComponent>(_player);
+        auto*hp =world.getComponent<HealthComponent>(_player);
+        auto*wc =world.getComponent<WeaponComponent>(_player);
+        if(!col||!pl||!hp) return;
+        std::vector<Entity> rm;
+        for(int id:col->EntityCollided){
+            Entity o=static_cast<Entity>(id);
+            auto*spr=world.getComponent<SpriteComponent>(o);
+            if(!spr) continue;
 
-        for (int otherId : col->EntityCollided) {
-            Entity other = static_cast<Entity>(otherId);
-            auto* spr = world.getComponent<SpriteComponent>(other);
-            if (!spr) continue;
+            if(spr->tag==EntityTag::XP_ORB){ pl->materials++; rm.push_back(o); }
 
-            bool dmg = false;
-            if (spr->tag == EntityTag::BULLET_EN) {
-                auto* b = world.getComponent<BulletComponent>(other);
-                if (b) { hp->hp -= b->damage; dmg = true; }
-                world.removeEntity(other);
-            } else if (spr->tag == EntityTag::ENEMY || spr->tag == EntityTag::BOSS) {
-                hp->hp -= 10.f * dt; // dégâts par contact
-                dmg = true;
+            else if(spr->tag==EntityTag::PICKUP_AMMO){
+                // Recharge les 2 armes
+                if(wc){ for(auto& s:wc->slots) if(s.weapon) s.weapon->refillAmmo(); }
+                rm.push_back(o);
             }
-
-            if (dmg) {
-                pl->isInvincible = true;
-                pl->invincTimer  = 0.8f;
-                break;
+            else if(spr->tag==EntityTag::PICKUP_HP){
+                hp->hp=std::min(hp->maxHp, hp->hp+50.f);
+                rm.push_back(o);
+            }
+            else if(spr->tag==EntityTag::PICKUP_SHIELD){
+                pl->hasShield=true;
+                pl->shieldHp=pl->shieldMax;
+                rm.push_back(o);
             }
         }
+        for(Entity e:rm) world.removeEntity(e);
     }
 
-    void checkGameOver() {
-        auto* hp = world.getComponent<HealthComponent>(_player);
-        if (!hp) return;
-        if (hp->hp <= 0.f) {
-            auto* wc = world.getComponent<WaveComponent>(_waveEntity);
-            if (wc) wc->state = WaveState::GAME_OVER;
+    void handlePlayerDamage(float dt){
+        auto*pl=world.getComponent<PlayerComponent>(_player);
+        auto*col=world.getComponent<BoxColliderComponent>(_player);
+        auto*hp=world.getComponent<HealthComponent>(_player);
+        if(!pl||!col||!hp||pl->isInvincible) return;
+
+        for(int id:col->EntityCollided){
+            Entity o=static_cast<Entity>(id);
+            auto*spr=world.getComponent<SpriteComponent>(o); if(!spr) continue;
+            bool hit=false;
+            float dmg=0;
+
+            if(spr->tag==EntityTag::BULLET_EN){
+                auto*b=world.getComponent<BulletComponent>(o);
+                if(b) dmg=b->damage;
+                world.removeEntity(o); hit=true;
+            } else if(spr->tag==EntityTag::ENEMY||spr->tag==EntityTag::BOSS){
+                auto*ai=world.getComponent<EnemyAIComponent>(o);
+                dmg=(ai?ai->damage:8.f)*dt*2.f; hit=true;
+            }
+
+            if(hit&&dmg>0){
+                // Bouclier absorbe en premier
+                if(pl->hasShield&&pl->shieldHp>0){
+                    pl->shieldHp-=dmg;
+                    if(pl->shieldHp<=0){pl->shieldHp=0;pl->hasShield=false;}
+                } else {
+                    hp->hp-=dmg;
+                }
+                pl->isInvincible=true; pl->invincTimer=0.6f;
+                if(spr->tag==EntityTag::BULLET_EN) break;
+            }
         }
     }
 
-    void syncHUD() {
-        auto* hp  = world.getComponent<HealthComponent>(_player);
-        auto* wc  = world.getComponent<WeaponComponent>(_player);
-        auto* pl  = world.getComponent<PlayerComponent>(_player);
-        auto* wvc = world.getComponent<WaveComponent>(_waveEntity);
-
-        if (hp)  { _hudHp = hp->hp; _hudMaxHp = hp->maxHp; }
-        if (wc)  { _hudAmmo = wc->ammo; _hudMaxAmmo = wc->maxAmmo; _hudWeaponName = wc->weaponName; }
-        if (pl)  { _hudMaterials = pl->materials; }
-        if (wvc) { _hudWave = wvc->currentWave; }
+    void handleInvinc(float dt){
+        auto*pl=world.getComponent<PlayerComponent>(_player); if(!pl) return;
+        if(!pl->isInvincible) return;
+        pl->invincTimer-=dt;
+        if(pl->invincTimer<=0.f){pl->invincTimer=0;pl->isInvincible=false;}
+        if(auto*spr=world.getComponent<SpriteComponent>(_player))
+            spr->tint=(pl->isInvincible&&(int)(pl->invincTimer*12)%2==0)
+                     ?Color{255,80,80,160}:WHITE;
     }
 
+    void checkDeath(){
+        auto*hp=world.getComponent<HealthComponent>(_player);
+        if(hp&&hp->hp<=0.f){ _sm->changeScene(SceneType::GAMEOVER); return; }
+        auto*wv=world.getComponent<WaveComponent>(_waveEnt);
+        if(wv&&wv->state==WaveState::VICTORY){ _sm->changeScene(SceneType::GAMEOVER); return; }
+    }
+
+    void syncHUD(){
+        if(auto*hp=world.getComponent<HealthComponent>(_player))
+            {_hp=hp->hp;_maxHp=hp->maxHp;}
+        if(auto*pl=world.getComponent<PlayerComponent>(_player))
+            {_mats=pl->materials;_kills=pl->kills;
+             _hasShield=pl->hasShield;_shieldHp=pl->shieldHp;_shieldMax=pl->shieldMax;}
+        if(auto*wc=world.getComponent<WeaponComponent>(_player)){
+            _ammo=wc->ammo();_maxAmmo=wc->maxAmmo();
+            _wname=wc->weaponName(); _reloading=wc->reloading();
+            int other=1-wc->activeSlot;
+            _w2name=wc->slots[other].weapon?wc->slots[other].weapon->getName():"--";
+        }
+        if(auto*wv=world.getComponent<WaveComponent>(_waveEnt))
+            {_wave_n=wv->currentWave;_wstate=wv->state;
+             _betweenT=wv->betweenTimer;_betweenMax=wv->betweenMax;}
+    }
+
+    // ── Render ──────────────────────────────────────────────────
     void render(float dt) override {
         _render.update(dt);
+        drawEnemyHP();
         drawHUD();
     }
 
-    void drawHUD() {
-        // Fond HUD en bas
-        DrawRectangle(0, 1040, 1920, 40, { 0, 0, 0, 180 });
+    // Barres de HP au-dessus de chaque ennemi
+    void drawEnemyHP(){
+        float scaleX=(float)GetScreenWidth()/1920.f;
+        float scaleY=(float)GetScreenHeight()/1080.f;
+        float sc=std::min(scaleX,scaleY);
+        float ox=(GetScreenWidth() -1920.f*sc)/2.f;
+        float oy=(GetScreenHeight()-1080.f*sc)/2.f;
 
-        // HP Bar
-        DrawRectangle(20, 1047, 200, 26, DARKGRAY);
-        float hpRatio = (_hudMaxHp > 0) ? _hudHp / _hudMaxHp : 0;
-        Color hpColor = (hpRatio > 0.5f) ? GREEN : (hpRatio > 0.25f) ? YELLOW : RED;
-        DrawRectangle(20, 1047, (int)(200 * hpRatio), 26, hpColor);
-        DrawRectangleLines(20, 1047, 200, 26, WHITE);
-        DrawText(TextFormat("HP %.0f/%.0f", _hudHp, _hudMaxHp), 25, 1050, 20, WHITE);
+        for(Entity e:world.getContainer<EnemyAIComponent>().getEntities()){
+            auto*pos=world.getComponent<PositionComponent>(e);
+            auto*hp =world.getComponent<HealthComponent>(e);
+            auto*ai =world.getComponent<EnemyAIComponent>(e);
+            auto*spr=world.getComponent<SpriteComponent>(e);
+            if(!pos||!hp||!ai) continue;
 
-        // Arme + ammo
-        DrawText(TextFormat("[%s]  %d / %d", _hudWeaponName.c_str(), _hudAmmo, _hudMaxAmmo),
-                 260, 1050, 22, YELLOW);
+            float ratio=hp->maxHp>0?hp->hp/hp->maxHp:0;
+            float barW=ai->isBoss?90.f:50.f;
+            float barH=ai->isBoss?12.f:7.f;
+            float sprH=(spr?spr->height*spr->scale:32.f);
 
-        // Vague
-        DrawText(TextFormat("Wave: %d / 20", _hudWave), 700, 1050, 22, WHITE);
+            // Coords virtuelles -> coords écran
+            float sx=(float)(ox+(pos->x-barW/2)*sc);
+            float sy=(float)(oy+(pos->y-sprH/2-barH-6)*sc);
+            float sw=barW*sc, sh=barH*sc;
 
-        // Matériaux
-        DrawText(TextFormat("Materials: %d", _hudMaterials), 950, 1050, 22, {100, 255, 100, 255});
+            DrawRectangle((int)sx,(int)sy,(int)sw,(int)sh,DARKGRAY);
+            Color hcol=ratio>0.5f?GREEN:ratio>0.25f?YELLOW:RED;
+            if(ai->isBoss) hcol=ratio>0.5f?ORANGE:RED;
+            DrawRectangle((int)sx,(int)sy,(int)(sw*ratio),(int)sh,hcol);
+            DrawRectangleLines((int)sx,(int)sy,(int)sw,(int)sh,WHITE);
 
-        // Reloading indicator
-        if (world.hasContainer<WeaponComponent>()) {
-            auto* wc = world.getComponent<WeaponComponent>(_player);
-            if (wc && wc->currentWeapon && wc->currentWeapon->isReloading)
-                DrawText("RELOADING...", 1400, 1050, 22, ORANGE);
+            // Nom + HP pour boss
+            if(ai->isBoss){
+                std::string bstr="BOSS  "+std::to_string((int)hp->hp)+"/"+std::to_string((int)hp->maxHp);
+                int bsz=(int)(12*sc);
+                DrawText(bstr.c_str(),(int)sx,(int)(sy-bsz-2),bsz,ORANGE);
+            }
         }
+    }
+
+    void drawHUD(){
+        int sw=GetScreenWidth(),sh=GetScreenHeight();
+        int hudH=54;
+        DrawRectangle(0,sh-hudH,sw,hudH,{0,0,0,225});
+        DrawLine(0,sh-hudH,sw,sh-hudH,{50,50,70,255});
+
+        int y=sh-hudH+8;
+        int sz=20;
+
+        // ── HP bar ──────────────────────────────────────────
+        float ratio=_maxHp>0?_hp/_maxHp:0;
+        DrawRectangle(8,y,220,32,DARKGRAY);
+        Color hc=ratio>0.5f?GREEN:ratio>0.25f?YELLOW:RED;
+        DrawRectangle(8,y,(int)(220*ratio),32,hc);
+        DrawRectangleLines(8,y,220,32,WHITE);
+        DrawText(TextFormat("HP %.0f/%.0f",_hp,_maxHp),14,y+6,sz,WHITE);
+
+        // ── Bouclier ────────────────────────────────────────
+        if(_hasShield){
+            float sr=_shieldMax>0?_shieldHp/_shieldMax:0;
+            DrawRectangle(8,y-22,220,14,DARKGRAY);
+            DrawRectangle(8,y-22,(int)(220*sr),14,{60,120,255,255});
+            DrawRectangleLines(8,y-22,220,14,{100,180,255,255});
+            DrawText(TextFormat("SHIELD %.0f",_shieldHp),14,y-20,12,{150,200,255,255});
+        }
+
+        DrawLine(236,sh-hudH,236,sh,{50,50,70,255});
+
+        // ── Arme active ─────────────────────────────────────
+        int ax=244;
+        Color wc_col=_reloading?ORANGE:YELLOW;
+        DrawText(TextFormat("[%s]",_wname.c_str()),ax,y,sz,wc_col);
+        int ww=MeasureText(TextFormat("[%s]",_wname.c_str()),sz);
+        DrawText(TextFormat("%d/%d",_ammo,_maxAmmo),ax+ww+6,y,sz,WHITE);
+        if(_reloading)
+            DrawText("RECHARGEMENT...",ax,y-18,14,ORANGE);
+
+        // Arme secondaire en gris
+        DrawText(TextFormat("2e:[%s]",_w2name.c_str()),ax,(int)(y+sz+2),14,GRAY);
+
+        DrawLine(ax+190,sh-hudH,ax+190,sh,{50,50,70,255});
+
+        // ── Vague ───────────────────────────────────────────
+        int vx=ax+198;
+        Color wv_col=_wstate==WaveState::BETWEEN_WAVES?ORANGE:WHITE;
+        DrawText(TextFormat("Vague %d/20",_wave_n),vx,y,sz,wv_col);
+        if(_wstate==WaveState::BETWEEN_WAVES){
+            std::string ct=TextFormat("Prochaine dans %.0fs",_betweenT);
+            DrawText(ct.c_str(),vx,y-18,14,ORANGE);
+        }
+        DrawLine(vx+160,sh-hudH,vx+160,sh,{50,50,70,255});
+
+        // ── Stats ───────────────────────────────────────────
+        int sx2=vx+168;
+        DrawText(TextFormat("Mat: %d",_mats),sx2,y,sz,GREEN);
+        DrawText(TextFormat("Kills: %d",_kills),sx2+100,y,sz,ORANGE);
+
+        // ── Aide ────────────────────────────────────────────
+        const char* help="[R]Reload [E]Pickup [ScrollWheel/Clic D]Swap [Echap]Menu";
+        int fsz=14;
+        DrawText(help,sw-MeasureText(help,fsz)-8,sh-fsz-6,fsz,{90,90,90,255});
+
+        // ── Crosshair ───────────────────────────────────────
+        Vector2 m=GetMousePosition();
+        int cx=(int)m.x,cy=(int)m.y;
+        DrawLine(cx-14,cy,cx-5,cy,{255,255,255,200});
+        DrawLine(cx+5, cy,cx+14,cy,{255,255,255,200});
+        DrawLine(cx,cy-14,cx,cy-5, {255,255,255,200});
+        DrawLine(cx,cy+5, cx,cy+14,{255,255,255,200});
+        DrawCircleLines(cx,cy,5,{255,255,255,160});
     }
 };

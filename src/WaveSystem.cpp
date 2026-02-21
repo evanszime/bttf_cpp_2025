@@ -1,123 +1,114 @@
 #include "../include/Engine.hpp"
 #include <cmath>
+#include <cstdlib>
 #include <random>
 
-static std::mt19937 waveRng(12345);
+static std::mt19937 rngW(77);
 
-// Positions de spawn aléatoires sur le bord de l'arène
-static std::pair<float,float> randomSpawnPos()
-{
-    std::uniform_int_distribution<int> side(0, 3);
-    std::uniform_real_distribution<float> posX(0.f, 1920.f);
-    std::uniform_real_distribution<float> posY(0.f, 1080.f);
-
-    int s = side(waveRng);
-    switch(s) {
-        case 0: return {posX(waveRng), -30.f};     // top
-        case 1: return {posX(waveRng), 1110.f};    // bottom
-        case 2: return {-30.f,  posY(waveRng)};    // left
-        default:return {1950.f, posY(waveRng)};    // right
+static void spawnEnemy(World& w, int wave, bool isBoss){
+    // Position sur les bords de l'arène
+    std::uniform_int_distribution<int> side(0,3);
+    std::uniform_int_distribution<int> rx(120,1800);
+    std::uniform_int_distribution<int> ry(120,960);
+    int s=side(rngW);
+    float px,py;
+    switch(s){
+        case 0: px=(float)rx(rngW); py=80;  break;
+        case 1: px=(float)rx(rngW); py=1000; break;
+        case 2: px=80;  py=(float)ry(rngW); break;
+        default:px=1840; py=(float)ry(rngW); break;
     }
+
+    Entity e=w.createEntity();
+    PositionComponent pos; pos.x=px; pos.y=py; w.addComponent(e,pos);
+
+    // HP : 60 pour ennemi normal, boss = 400 + wave*80
+    float hpBase = isBoss ? 400.f+wave*80.f : 60.f;
+    HealthComponent hp; hp.hp=hp.maxHp=hpBase; w.addComponent(e,hp);
+
+    SpriteComponent spr;
+    spr.texturePath=isBoss?2:1;
+    float sz=isBoss?64.f:32.f;
+    spr.width=sz; spr.height=sz;
+    spr.left=0; spr.top=0; spr.scale=isBoss?1.5f:1.4f;
+    spr.offsetX=-sz*spr.scale/2.f; spr.offsetY=-sz*spr.scale/2.f;
+    spr.tag=isBoss?EntityTag::BOSS:EntityTag::ENEMY;
+    spr.layer=isBoss?4:2;
+    spr.tint=isBoss?Color{220,30,30,255}:WHITE;
+    w.addComponent(e,spr);
+
+    BoxColliderComponent col; col.isCircle=true;
+    col.radius=isBoss?36.f:18.f;
+    col.TagsCollided={(int)EntityTag::BULLET_PL,(int)EntityTag::PLAYER};
+    w.addComponent(e,col);
+
+    EnemyAIComponent ai;
+    // Vitesse et dégâts progressifs
+    float wf=(float)wave;
+    if(isBoss){
+        ai.speed      =55.f+wf*2.f;
+        ai.fireRate   =1.2f;
+        ai.damage     =20.f+wf*1.5f;
+        ai.bulletSpeed=260.f+wf*5.f;
+        ai.burstCount =3;
+        ai.spreadAngle=20.f;
+        ai.attackRange=450.f;
+        ai.isBoss     =true;
+    } else {
+        ai.speed      =65.f+wf*4.f;
+        ai.fireRate   =std::max(0.8f, 2.5f-wf*0.08f);
+        ai.damage     =8.f+wf*0.5f;
+        ai.bulletSpeed=200.f+wf*8.f;
+        ai.burstCount =1;
+        ai.attackRange=350.f;
+    }
+    w.addComponent(e,ai);
 }
 
-void WaveSystem::update(float dt)
-{
-    if (!world || !_sm) return;
+void WaveSystem::update(float dt){
+    if(!world||!_sm) return;
+    auto& waves=world->getContainer<WaveComponent>();
+    for(Entity e:waves.getEntities()){
+        auto*wc=waves.get(e); if(!wc) continue;
 
-    auto& waveComps = world->getContainer<WaveComponent>();
-    if (waveComps.getEntities().empty()) return;
+        if(wc->state==WaveState::VICTORY){
+            _sm->changeScene(SceneType::GAMEOVER); return;
+        }
 
-    Entity we  = waveComps.getEntities()[0];
-    auto*  wc  = waveComps.get(we);
-    if (!wc) return;
+        // ── Entre vagues ─────────────────────────────────
+        if(wc->state==WaveState::BETWEEN_WAVES||wc->state==WaveState::BOSS_WAVE){
+            wc->betweenTimer-=dt;
+            if(wc->betweenTimer<=0.f){
+                wc->currentWave++;
+                if(wc->currentWave>wc->maxWaves){ wc->state=WaveState::VICTORY; return; }
+                // Vague N = 10*N ennemis
+                wc->enemiesLeft=10*wc->currentWave;
+                wc->enemiesAlive=0;
+                wc->bossSpawned=false;
+                wc->betweenTimer=wc->betweenMax;
+                wc->spawnTimer=0.f;
+                wc->state=WaveState::FIGHTING;
+            }
+            return;
+        }
 
-    switch (wc->state) {
-
-    case WaveState::FIGHTING: {
-        wc->waveTimer += dt;
-
-        // Spawn d'ennemis
-        wc->spawnTimer += dt;
-        if (wc->spawnTimer >= wc->spawnRate && wc->enemiesLeft > 0) {
-            wc->spawnTimer = 0.f;
+        // ── Spawn ennemis ─────────────────────────────────
+        wc->spawnTimer+=dt;
+        if(wc->spawnTimer>=wc->spawnRate&&wc->enemiesLeft>0){
+            wc->spawnTimer=0.f;
+            // Boss : spawne SEULEMENT à la fin de la vague (dernier ennemi), vagues 3,6,9...
+            bool isBossWave=(wc->currentWave%3==0);
+            bool spawnBoss=(isBossWave && wc->enemiesLeft==1 && !wc->bossSpawned);
+            if(spawnBoss) wc->bossSpawned=true;
+            spawnEnemy(*world, wc->currentWave, spawnBoss);
             wc->enemiesLeft--;
-            wc->enemiesAlive++;
-
-            auto [sx, sy] = randomSpawnPos();
-
-            // Boss à la vague 10 et 20
-            bool isBoss = (wc->currentWave % 10 == 0 && wc->enemiesLeft == 0);
-
-            // EnemySystem::spawnEnemy via pointeur world
-            // On instancie un EnemySystem temporaire
-            EnemySystem es;
-            es.setWorld(*world);
-            es.spawnEnemy(sx, sy, wc->currentWave, isBoss);
         }
 
-        // Vague terminée: tous les ennemis spawned et morts
-        bool allDead = (wc->enemiesLeft == 0 && wc->enemiesAlive == 0);
-        bool timeout = (wc->waveTimer >= wc->waveDuration);
-
-        if (allDead || timeout) {
-            wc->state = WaveState::WAVE_CLEAR;
-            wc->transitionTimer = 0.f;
-
-            // Collecter les XP orbs restants
-            auto& sprites   = world->getContainer<SpriteComponent>();
-            auto& playersC  = world->getContainer<PlayerComponent>();
-            auto& positions = world->getContainer<PositionComponent>();
-
-            // Trouver le joueur
-            Entity player{0};
-            for (Entity e : sprites.getEntities()) {
-                auto* s = sprites.get(e);
-                if (s && s->tag == EntityTag::PLAYER) { player = e; break; }
-            }
-            auto* pl = player != Entity{0} ? playersC.get(player) : nullptr;
-
-            // Auto-collect XP orbs
-            std::vector<Entity> toRm;
-            for (Entity e : sprites.getEntities()) {
-                auto* s = sprites.get(e);
-                if (s && s->tag == EntityTag::XP_ORB) {
-                    if (pl) pl->materials++;
-                    toRm.push_back(e);
-                }
-            }
-            for (Entity e : toRm) world->removeEntity(e);
+        // ── Compter ennemis vivants ───────────────────────
+        wc->enemiesAlive=(int)world->getContainer<EnemyAIComponent>().getEntities().size();
+        if(wc->enemiesLeft==0&&wc->enemiesAlive==0){
+            wc->betweenTimer=wc->betweenMax;
+            wc->state=WaveState::BETWEEN_WAVES;
         }
-        break;
-    }
-
-    case WaveState::WAVE_CLEAR: {
-        wc->transitionTimer += dt;
-        if (wc->transitionTimer >= wc->transitionDelay) {
-            wc->currentWave++;
-            if (wc->currentWave > wc->maxWaves) {
-                wc->state = WaveState::VICTORY;
-                _sm->changeScene(SceneType::VICTORY);
-            } else {
-                // Préparer vague suivante
-                wc->state       = WaveState::FIGHTING;
-                wc->waveTimer   = 0.f;
-                wc->spawnTimer  = 0.f;
-                wc->enemiesAlive= 0;
-
-                // Nombre d'ennemis = base + progression
-                int base = wc->baseEnemiesPerWave + (wc->currentWave - 1) * 2;
-                wc->enemiesLeft = base;
-                wc->spawnRate   = std::max(0.5f, 1.5f - (wc->currentWave - 1) * 0.05f);
-                wc->waveDuration= 30.f + wc->currentWave * 2.f;
-            }
-        }
-        break;
-    }
-
-    case WaveState::GAME_OVER:
-        _sm->changeScene(SceneType::GAME_OVER);
-        break;
-
-    default: break;
     }
 }

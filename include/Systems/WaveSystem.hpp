@@ -1,15 +1,14 @@
 #pragma once
 #include "System.hpp"
-#include "../SceneManager.hpp"
 #include "../GlobalComponent.hpp"
-
+#include "../SceneManager.hpp"
 class WaveSystem : public System {
 private:
-    SceneManager*    _sm     = nullptr;
     GlobalComponent* _global = nullptr;
+    SceneManager*    _sm     = nullptr;
 public:
-    explicit WaveSystem() : System() {}
-    void setSceneManager(SceneManager& sm) { _sm = &sm; }
-    void setGlobal(GlobalComponent& g)     { _global = &g; }
+    explicit WaveSystem() = default;
+    void setGlobal(GlobalComponent& g)    { _global = &g; }
+    void setSceneManager(SceneManager& sm){ _sm = &sm; }
     void update(float dt) override;
 };

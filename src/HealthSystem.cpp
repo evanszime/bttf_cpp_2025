@@ -1,20 +1,10 @@
 #include "../include/Engine.hpp"
-
-void HealthSystem::update(float dt)
-{
-    if (!world) return;
+void HealthSystem::update(float dt) {
+    (void)dt;
     auto& healths = world->getContainer<HealthComponent>();
-
-    std::vector<Entity> toRemove;
     for (Entity e : healths.getEntities()) {
-        auto* h = healths.get(e);
-        if (!h) continue;
-        h->hp = std::min(h->hp, h->maxHp);
-        if (h->hp <= (float)h->deathHp && !h->isDead) {
-            h->isDead = true;
-            toRemove.push_back(e);
-        }
+        auto* h = healths.get(e); if (!h) continue;
+        if (h->hp > h->maxHp) h->hp = h->maxHp;
+        if (h->hp <= h->deathHp && !h->isDead) h->isDead = true;
     }
-    for (Entity e : toRemove)
-        world->removeEntity(e);
 }

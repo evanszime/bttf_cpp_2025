@@ -1,10 +1,2 @@
 #pragma once
-
-#include <string>
-
-struct ScoreComponent
-{
-    int score;
-    int highScore;
-    std::string playerName;
-};
+struct ScoreComponent { int score=0; int wave=1; };
