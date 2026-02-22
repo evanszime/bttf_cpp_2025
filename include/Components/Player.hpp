@@ -1,7 +1,7 @@
 #pragma once
 struct PlayerComponent {
     // Stats
-    float speed         = 400.f;
+    float speed         = 200.f;
     float damage        = 1.f;
     int   armor         = 0;
     int   materials     = 0;

@@ -69,9 +69,9 @@ static Entity spawnBullet(World& w,
 class Pistol : public IWeapon {
     World* _w;
 public:
-    Pistol(World* w):_w(w){maxAmmo=50;currentAmmo=50;fireRate=2.0f;reloadTime=1.0f;}
+    Pistol(World* w):_w(w){maxAmmo=120;currentAmmo=120;fireRate=0.35f;reloadTime=1.2f;}
     std::string getName() const override{return "Pistol";}
-    std::string getDesc() const override{return "Semi-auto | 50 dmg | 12/12";}
+    std::string getDesc() const override{return "Semi-auto | 20dmg | 12/12";}
     bool fire(float px,float py,float tx,float ty) override {
         if(!canFire()) return false;
         float dx=tx-px,dy=ty-py; normalize(dx,dy);
@@ -86,7 +86,7 @@ public:
 class Shotgun : public IWeapon {
     World* _w;
 public:
-    Shotgun(World* w):_w(w){maxAmmo=6;currentAmmo=6;fireRate=0.85f;reloadTime=2.f;}
+    Shotgun(World* w):_w(w){maxAmmo=60;currentAmmo=60;fireRate=0.85f;reloadTime=2.f;}
     std::string getName() const override{return "Shotgun";}
     std::string getDesc() const override{return "7 pellets | 8dmg each | 6/6";}
     bool fire(float px,float py,float tx,float ty) override {
@@ -109,7 +109,7 @@ public:
 class Sniper : public IWeapon {
     World* _w;
 public:
-    Sniper(World* w):_w(w){maxAmmo=5;currentAmmo=5;fireRate=1.3f;reloadTime=2.5f;}
+    Sniper(World* w):_w(w){maxAmmo=50;currentAmmo=50;fireRate=1.3f;reloadTime=2.5f;}
     std::string getName() const override{return "Sniper";}
     std::string getDesc() const override{return "Pierce x3 | 60dmg | 5/5";}
     bool fire(float px,float py,float tx,float ty) override {
@@ -127,7 +127,7 @@ public:
 class AK47 : public IWeapon {
     World* _w;
 public:
-    AK47(World* w):_w(w){maxAmmo=30;currentAmmo=30;fireRate=0.1f;reloadTime=2.f;}
+    AK47(World* w):_w(w){maxAmmo=300;currentAmmo=300;fireRate=0.1f;reloadTime=2.f;}
     std::string getName() const override{return "AK-47";}
     std::string getDesc() const override{return "Full-auto | 12dmg | 30/30";}
     bool fire(float px,float py,float tx,float ty) override {
@@ -148,7 +148,7 @@ public:
 class BombLauncher : public IWeapon {
     World* _w;
 public:
-    BombLauncher(World* w):_w(w){maxAmmo=3;currentAmmo=3;fireRate=1.8f;reloadTime=3.f;}
+    BombLauncher(World* w):_w(w){maxAmmo=30;currentAmmo=30;fireRate=1.8f;reloadTime=3.f;}
     std::string getName() const override{return "Bomb";}
     std::string getDesc() const override{return "AoE 120px | 80+50dmg | 3/3";}
     bool fire(float px,float py,float tx,float ty) override {

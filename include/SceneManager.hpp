@@ -5,10 +5,9 @@
 #include <unordered_map>
 #include <functional>
 
-// Forward déclaration de InputContext (défini dans InputSystem.hpp)
 class InputContext;
 
-enum class SceneType { MENU, GAME, SETTINGS, GAMEOVER };
+enum class SceneType { MENU, GAME, SETTINGS, GAMEOVER, INFO };
 
 class Scene {
 protected:
@@ -18,68 +17,55 @@ protected:
     InputContext* _inputCtx = nullptr;
 
 public:
-    Scene(const std::string& name) : sceneName(name) {}
+    explicit Scene(const std::string& name) : sceneName(name) {}
     virtual ~Scene() = default;
 
-    virtual void onEnter()          = 0;
-    virtual void onExit()           = 0;
-    virtual void update(float dt)   = 0;
-    virtual void render(float dt)   = 0;
+    virtual void onEnter() = 0;
+    virtual void onExit()  = 0;
+    virtual void update(float dt) = 0;
+    virtual void render(float dt) = 0;
 
-    World&       getWorld()          { return world; }
-    const std::string& getName()     const { return sceneName; }
-    bool getIsActive()               const { return isActive; }
-    void setActive(bool a)           { isActive = a; }
+    void setActive(bool a) { isActive = a; }
+    bool getActive() const { return isActive; }
+    const std::string& getName() const { return sceneName; }
 };
 
 class SceneManager {
-private:
-    std::unordered_map<SceneType, std::unique_ptr<Scene>> scenes;
-    Scene* currentScene    = nullptr;
-    Scene* nextScene       = nullptr;
-    bool   isTransitioning = false;
+    std::unordered_map<SceneType, std::unique_ptr<Scene>> _scenes;
+    Scene* _current  = nullptr;
+    SceneType _next  = SceneType::MENU;
+    bool _changePending = false;
 
 public:
-    SceneManager() = default;
-
     void registerScene(SceneType type, std::unique_ptr<Scene> scene) {
-        scenes[type] = std::move(scene);
+        _scenes[type] = std::move(scene);
     }
 
     void changeScene(SceneType type) {
-        auto it = scenes.find(type);
-        if (it != scenes.end()) {
-            nextScene = it->second.get();
-            isTransitioning = true;
-            processTransition();
-        }
+        _next = type;
+        _changePending = true;
     }
 
     void processTransition() {
-        if (!isTransitioning || !nextScene) return;
-        if (currentScene) {
-            currentScene->onExit();
-            currentScene->setActive(false);
-            currentScene->getWorld().clearWorld();
+        if (!_changePending) return;
+        _changePending = false;
+        if (_current) { _current->onExit(); _current->setActive(false); }
+        auto it = _scenes.find(_next);
+        if (it != _scenes.end()) {
+            _current = it->second.get();
+            _current->setActive(true);
+            _current->onEnter();
         }
-        currentScene = nextScene;
-        currentScene->setActive(true);
-        currentScene->onEnter();
-        nextScene       = nullptr;
-        isTransitioning = false;
     }
 
     void update(float dt) {
-        if (currentScene && currentScene->getIsActive())
-            currentScene->update(dt);
+        processTransition();
+        if (_current && _current->getActive()) _current->update(dt);
     }
 
     void render(float dt) {
-        if (currentScene && currentScene->getIsActive())
-            currentScene->render(dt);
+        if (_current && _current->getActive()) _current->render(dt);
     }
 
-    Scene* getCurrentScene()  { return currentScene; }
-    World* getCurrentWorld()  { return currentScene ? &currentScene->getWorld() : nullptr; }
-    bool   isInTransition()   const { return isTransitioning; }
+    bool hasScene(SceneType t) const { return _scenes.count(t) > 0; }
 };
