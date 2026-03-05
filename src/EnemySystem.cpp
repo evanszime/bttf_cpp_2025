@@ -43,8 +43,7 @@ static void spawnEnemyBullet(World& w, float ox, float oy,
 static void doShockwave(World& w, float ox, float oy, BulletStyle st) {
     for (int i=0; i<16; i++) {
         float a=i*(6.2831f/16.f);
-        spawnEnemyBullet(w,ox,oy,std::cos(a),std::sin(a),
-                         180.f,12.f,st);
+        spawnEnemyBullet(w,ox,oy,std::cos(a),std::sin(a),180.f,4.0f,st);
     }
     // Effet cercle jaune
     Entity fx=w.createEntity();

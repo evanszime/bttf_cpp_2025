@@ -54,6 +54,8 @@ public:
 
     void onEnter() override {
         _phase=Phase::ACTIVISION; _timer=0; _alpha=0; _loadPct=0;
+        // Charger les settings persistants dès le démarrage
+        _g->loadSettings();
         // Musique démarre IMMÉDIATEMENT à l'ouverture de la fenêtre
         _g->playBGMusic("assets/sounds/music_menu.ogg");
     }
@@ -458,8 +460,9 @@ public:
             _g->playSFX(SFX::UI_CLICK);
         }
 
-        // Retour
+        // Retour (sauvegarde settings)
         if (IsKeyPressed(KEY_ESCAPE)) {
+            _g->saveSettings();
             _g->playSFX(SFX::UI_CLICK);
             _sm->changeScene(SceneType::MENU);
         }

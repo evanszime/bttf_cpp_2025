@@ -4,7 +4,6 @@
 
 struct LayerTagInfo { int layer=0; EntityTag tag=EntityTag::NONE; bool valid=false; };
 
-
 static LayerTagInfo getInfo(Entity e, World& w) {
     LayerTagInfo info;
     if (auto* s = w.getComponent<SpriteComponent>(e)) { info.layer=s->layer; info.tag=s->tag; info.valid=true; }
@@ -21,7 +20,6 @@ static bool canCollide(const BoxColliderComponent& col, const LayerTagInfo& b) {
         std::find(col.TagsCollided.begin(), col.TagsCollided.end(), (int)b.tag) != col.TagsCollided.end();
     return layerOk && tagOk;
 }
-
 
 static bool rectRect(Entity A, Entity B, World& w, const BoxColliderComponent& bA, const BoxColliderComponent& bB) {
     auto* pA = w.getComponent<PositionComponent>(A);

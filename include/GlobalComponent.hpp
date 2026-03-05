@@ -59,6 +59,33 @@ public:
         if(bgMusicLoaded) StopMusicStream(bgMusic);
     }
 
+    // ════════════════════════════════════════════════════════
+    // SETTINGS PERSISTENCE : sauvegarde/chargement dans fichier
+    // ════════════════════════════════════════════════════════
+    void saveSettings() {
+        FILE* f = fopen("zimex_settings.cfg", "w");
+        if (!f) return;
+        fprintf(f, "volume=%.2f\n",     (double)masterVolume);
+        fprintf(f, "brightness=%.2f\n", (double)brightness);
+        fprintf(f, "fullscreen=%d\n",   (int)isFullscreen);
+        fclose(f);
+    }
+
+    void loadSettings() {
+        FILE* f = fopen("zimex_settings.cfg", "r");
+        if (!f) return;
+        float vol=0.8f, bright=1.0f; int fs=0;
+        fscanf(f, "volume=%f\n",     &vol);
+        fscanf(f, "brightness=%f\n", &bright);
+        fscanf(f, "fullscreen=%d\n", &fs);
+        fclose(f);
+        masterVolume = std::max(0.f, std::min(1.f, vol));
+        brightness   = std::max(0.1f,std::min(1.f, bright));
+        isFullscreen = (fs != 0);
+        // Appliquer immédiatement
+        SetMasterVolume(masterVolume);
+    }
+
     // Luminosité système via xrandr (Linux) — fallback silencieux si indispo
     void applySystemBrightness() {
         // xrandr --output <monitor> --brightness <val>

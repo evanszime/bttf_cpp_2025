@@ -123,4 +123,3 @@ void RenderSystem::update(float dt) {
     Rectangle dst = {_renderOffset.x,_renderOffset.y,VIRTUAL_W*_renderScale,VIRTUAL_H*_renderScale};
     DrawTexturePro(_renderTarget.texture, src, dst, {0,0}, 0.f, WHITE);
 }
-

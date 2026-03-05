@@ -142,7 +142,7 @@ static void spawnNormal(World& w, int wave) {
     EnemyAIComponent ai;
     ai.speed       =35.f+wf*4.f;
     ai.fireRate    =std::max(1.2f,3.f-wf*0.1f);
-    ai.damage      =0.08f;
+    ai.damage=4.0f;
     ai.bulletSpeed =65.f+wf*8.f;
     ai.burstCount  =1;
     ai.attackRange =450.f;
@@ -199,35 +199,35 @@ static void spawnBoss(World& w, int wave) {
 
     // ── Boss 1 : Shotgun violet ──────────────────────────────
     case BossType::SHOTGUN:
-        ai.speed=45; ai.fireRate=1.2f; ai.damage=0.1f;
+        ai.speed=45; ai.fireRate=1.2f; ai.damage=4.0f;
         ai.bulletSpeed=220; ai.burstCount=7; ai.spreadAngle=50;
         ai.bulletStyle={{160,0,220,255},10,10,5};
         break;
 
     // ── Boss 2 : Sniper blanc ────────────────────────────────
     case BossType::SNIPER:
-        ai.speed=35; ai.fireRate=2.5f; ai.damage=0.18f;
+        ai.speed=35; ai.fireRate=2.5f; ai.damage=4.0f;
         ai.bulletSpeed=950; ai.burstCount=1; ai.spreadAngle=0;
         ai.bulletStyle={{220,240,255,255},16,6,5};
         break;
 
     // ── Boss 3 : Bombes jaunes ───────────────────────────────
     case BossType::BOMB:
-        ai.speed=40; ai.fireRate=2.0f; ai.damage=0.15f;
+        ai.speed=40; ai.fireRate=2.0f; ai.damage=4.0f;
         ai.bulletSpeed=200; ai.burstCount=2; ai.spreadAngle=15;
         ai.bulletStyle={{255,230,0,255},16,16,8};
         break;
 
     // ── Boss 4 : Rockets rouge vif ───────────────────────────
     case BossType::ROCKET:
-        ai.speed=55; ai.fireRate=0.8f; ai.damage=0.2f;
+        ai.speed=55; ai.fireRate=0.8f; ai.damage=4.0f;
         ai.bulletSpeed=400; ai.burstCount=3; ai.spreadAngle=20;
         ai.bulletStyle={{255,20,20,255},14,8,6};
         break;
 
     // ── Boss 5 : Onde de choc + heal sbires ──────────────────
     case BossType::SHOCKWAVE:
-        ai.speed=50; ai.fireRate=1.5f; ai.damage=0.15f;
+        ai.speed=50; ai.fireRate=1.5f; ai.damage=4.0f;
         ai.bulletSpeed=200; ai.burstCount=2; ai.spreadAngle=15;
         ai.healInterval=8.f; ai.healTimer=0.f; ai.healCount=0;
         ai.bulletStyle={{255,230,0,255},18,18,9};
@@ -235,7 +235,7 @@ static void spawnBoss(World& w, int wave) {
 
     // ── Boss 6 : FINAL ───────────────────────────────────────
     case BossType::FINAL:
-        ai.speed=40; ai.fireRate=1.5f; ai.damage=0.15f;
+        ai.speed=40; ai.fireRate=1.5f; ai.damage=4.0f;
         ai.bulletSpeed=300; ai.burstCount=4; ai.spreadAngle=25;
         ai.upgradeInterval=15.f; ai.upgradeTimer=0.f; ai.upgradeCount=0;
         ai.bulletStyle={{255,100,0,255},12,12,6};

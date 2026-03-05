@@ -108,6 +108,32 @@ void BulletSystem::update(float dt) {
             toRemove.push_back(e); continue;
         }
 
+        // ── Collision projectile → roche (Projectile-to-Wall) ──────────
+        {
+            bool hitWall = false;
+            float br = 8.f; // rayon approximatif bullet
+            for (const auto& obs : MAP_OBSTACLES) {
+                if (pos->x+br > obs.x && pos->x-br < obs.x+obs.width &&
+                    pos->y+br > obs.y && pos->y-br < obs.y+obs.height) {
+                    hitWall = true;
+                    // Petite étincelle sur impact
+                    Entity fx = world->createEntity();
+                    PositionComponent fp; fp.x=pos->x; fp.y=pos->y;
+                    world->addComponent(fx,fp);
+                    CircleComponent cc; cc.radius=6.f;
+                    cc.inlineColor={200,180,120,200};
+                    cc.outlineColor={255,255,180,180};
+                    cc.tickness=2.f; cc.layer=6;
+                    cc.tag=EntityTag::EXPLOSION;
+                    world->addComponent(fx,cc);
+                    TimeComponent tc; tc.duration=0.12f;
+                    world->addComponent(fx,tc);
+                    break;
+                }
+            }
+            if (hitWall) { toRemove.push_back(e); continue; }
+        }
+
         auto*col=colliders.get(e);
         if(!col||col->EntityCollided.empty()) continue;
 
