@@ -31,8 +31,8 @@ static void spawnEnemyBullet(World& w, float ox, float oy,
     w.addComponent(e,b);
     float angle=std::atan2(dy,dx)*180.f/3.14159f;
     SpriteComponent s;
-    s.texturePath=7; s.width=style.width; s.height=style.height;
-    s.tag=EntityTag::BULLET_EN; s.layer=3; s.rotation=angle; s.tint=style.tint;
+    s.texturePath=7; s.width=style.width*1.5f; s.height=style.height*1.5f;
+    s.tag=EntityTag::BULLET_EN; s.layer=5; s.rotation=angle; s.tint=style.tint;
     w.addComponent(e,s);
     BoxColliderComponent c; c.isCircle=true; c.radius=style.radius;
     c.TagsCollided={(int)EntityTag::PLAYER};

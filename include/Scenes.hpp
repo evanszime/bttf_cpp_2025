@@ -326,13 +326,8 @@ public:
             DrawRectangle(0,0,sw,sh,{5,5,15,255});
         }
 
-        // Titre ZIMEX avec effet pulsant
-        float pulse = 1.f + 0.04f*std::sin(_anim*3.f);
-        int tsz=(int)(sh/7*pulse);
-        const char* title = "ZIMEX";
-        DrawText(title, sw/2-MeasureText(title,tsz)/2+4, sh/10+4, tsz, {0,0,0,200});
-        DrawText(title, sw/2-MeasureText(title,tsz)/2+2, sh/10+2, tsz, {80,40,0,180});
-        DrawText(title, sw/2-MeasureText(title,tsz)/2,   sh/10,   tsz, YELLOW);
+        // (Pas de titre ZIMEX - le fond Brotato suffit)
+        (void)_anim;
 
         // Boutons
         struct Btn { float y1,y2; const char* lbl; Color bg; Color fg; };
@@ -359,7 +354,7 @@ public:
 
         // Volume affiché en bas
         int vsz=sh/32;
-        DrawText(TextFormat("Vol:%d%%  (+/-)",(int)(_g->masterVolume*100)),
+        DrawText(TextFormat("Vol:%d%%",(int)(_g->masterVolume*100)),
                  (int)(sw*0.02f), sh-vsz*2, vsz, {140,140,140,255});
     }
 };
@@ -432,17 +427,20 @@ public:
             float nb=std::max(0.1f,std::min(1.f,(GetMousePosition().x-bbx)/(float)bbw));
             _g->brightness=nb;
             if (std::fabs(nb-_prevBright)>0.04f) {
+                _g->applySystemBrightness();
                 _g->playSFX(SFX::BRIGHT_TICK);
                 _prevBright=nb;
             }
         }
-        // Touches flèches haut/bas
-        if (IsKeyPressed(KEY_UP)) {
-            _g->brightness=std::min(1.f,_g->brightness+0.05f);
+        // F5 = baisser luminosité, F6 = augmenter (comme les laptops)
+        if (IsKeyPressed(KEY_F5)) {
+            _g->brightness=std::max(0.1f,_g->brightness-0.05f);
+            _g->applySystemBrightness();
             _g->playSFX(SFX::BRIGHT_TICK);
         }
-        if (IsKeyPressed(KEY_DOWN)) {
-            _g->brightness=std::max(0.1f,_g->brightness-0.05f);
+        if (IsKeyPressed(KEY_F6)) {
+            _g->brightness=std::min(1.f,_g->brightness+0.05f);
+            _g->applySystemBrightness();
             _g->playSFX(SFX::BRIGHT_TICK);
         }
 
@@ -499,7 +497,7 @@ public:
 
         // ── Slider VOLUME ──────────────────────────────────
         DrawText("Volume",     lx, by, lsz, WHITE);
-        DrawText("(glisse ou +/-)", lx+MeasureText("Volume",lsz)+10, by, lsz-6, DARKGRAY);
+        
         DrawRectangle(bx, by, bw, bh, DARKGRAY);
         DrawRectangle(bx, by, (int)(bw*_g->masterVolume), bh, GREEN);
         int hx = bx+(int)(bw*_g->masterVolume);
@@ -510,8 +508,8 @@ public:
         by += ls;
 
         // ── Slider LUMINOSITÉ ──────────────────────────────
-        DrawText("Luminosité", lx, by, lsz, WHITE);
-        DrawText("(glisse ou ↑↓)", lx+MeasureText("Luminosité",lsz)+10, by, lsz-6, DARKGRAY);
+        DrawText("Luminosité  [F5-/F6+]", lx, by, lsz, WHITE);
+        
         DrawRectangle(bx, by, bw, bh, DARKGRAY);
         DrawRectangle(bx, by, (int)(bw*_g->brightness), bh, YELLOW);
         int bhx = bx+(int)(bw*_g->brightness);
@@ -697,7 +695,7 @@ public:
         spr.texturePath=weaponTex("pistol");
         spr.left=0.f; spr.top=0.f;
         spr.width=(float)FW; spr.height=(float)FH;
-        spr.scale=2.5f;
+        spr.scale=1.5f;
         spr.offsetX=-(float)FW*spr.scale/2.f; spr.offsetY=-(float)FH*spr.scale/2.f;
         spr.tag=EntityTag::PLAYER; spr.layer=2; spr.rotation=0.f;
         world.addComponent(_player,spr);
@@ -708,7 +706,7 @@ public:
                           (int)EntityTag::PICKUP_SHIELD};
         world.addComponent(_player,col);
         world.addComponent(_player,InputComponent{});
-        PlayerComponent pl; pl.speed=220.f; world.addComponent(_player,pl);
+        PlayerComponent pl; pl.speed=380.f; world.addComponent(_player,pl);
         WeaponComponent wc;
         wc.slots[0]={createWeapon("pistol",&world),"pistol"};
         wc.slots[1]={createWeapon("shotgun",&world),"shotgun"};
@@ -734,7 +732,7 @@ public:
         Entity e=world.createEntity();
         PositionComponent p; p.x=wx; p.y=wy; world.addComponent(e,p);
         SpriteComponent s; s.texturePath=tex; s.width=24; s.height=24;
-        s.scale=2.f; s.offsetX=-24; s.offsetY=-24;
+        s.scale=1.2f; s.offsetX=-14; s.offsetY=-14;
         s.tag=EntityTag::PICKUP; s.layer=1;
         world.addComponent(e,s);
         BoxColliderComponent c; c.isCircle=true; c.radius=24.f;
@@ -747,10 +745,10 @@ public:
     void onEnter() override {
         initSystems(); spawnMap(); spawnPlayer(); spawnWave();
         // Pickups éparpillés dans le monde
-        spawnPickup(SPAWN_CENTER_X-800, SPAWN_CENTER_Y-400, "sniper",  12);
-        spawnPickup(SPAWN_CENTER_X+800, SPAWN_CENTER_Y+400, "bomb",    13);
-        spawnPickup(SPAWN_CENTER_X+800, SPAWN_CENTER_Y-400, "ak47",    11);
-        spawnPickup(SPAWN_CENTER_X-600, SPAWN_CENTER_Y+600, "shotgun", 11);
+        // Pickups proches du spawn, sans AK47
+        spawnPickup(SPAWN_CENTER_X-220, SPAWN_CENTER_Y-200, "sniper",  12);
+        spawnPickup(SPAWN_CENTER_X+220, SPAWN_CENTER_Y+160, "bomb",    13);
+        spawnPickup(SPAWN_CENTER_X+200, SPAWN_CENTER_Y-180, "shotgun", 11);
         // Musique de jeu
         _g->playBGMusic("assets/sounds/music_game.ogg");
     }
@@ -857,8 +855,15 @@ public:
             }
         }
         if (newDir!=_dir){ _dir=newDir; _frame=0; _animT=0.f; }
-        if (_moving){ _animT+=dt; if(_animT>=1.f/_animFPS){_animT=0.f;_frame=(_frame+1)%N_FRAMES;} }
-        else { _frame=0; _animT=0.f; }
+        if (_moving) {
+            // Animation de marche : cycle sur toutes les frames
+            _animT+=dt;
+            if(_animT>=1.f/_animFPS){_animT=0.f;_frame=(_frame+1)%N_FRAMES;}
+        } else {
+            // IDLE : frame 0 = pose debout, pieds à plat, immobile
+            _frame=0;
+            _animT=0.f;
+        }
 
         if (auto* spr=world.getComponent<SpriteComponent>(_player)) {
             spr->left=(float)_frame*FW;
@@ -1175,9 +1180,11 @@ public:
 
     void applyBrightness() {
         float b = _g->brightness;
-        if (b < 1.f) {
+        if (b < 0.99f) {
             int sw=GetScreenWidth(), sh=GetScreenHeight();
-            unsigned char dark=(unsigned char)((1.f-b)*220.f);
+            // Overlay noir : plus la valeur est basse, plus c'est sombre
+            // 0.1 = presque noir (alpha=225), 0.99 = quasi transparent (alpha=2)
+            unsigned char dark=(unsigned char)((1.f-b)*230.f);
             DrawRectangle(0,0,sw,sh,{0,0,0,dark});
         }
     }

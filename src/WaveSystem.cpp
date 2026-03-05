@@ -131,11 +131,11 @@ static void spawnNormal(World& w, int wave) {
     int tex=ENEMY_TEX_BASE+((wave-1)%ENEMY_TEX_COUNT);
     SpriteComponent spr;
     spr.texturePath=tex; spr.width=64; spr.height=64;
-    spr.scale=1.2f; spr.offsetX=-38; spr.offsetY=-38;
+    spr.scale=0.75f; spr.offsetX=-24; spr.offsetY=-24;
     spr.tag=EntityTag::ENEMY; spr.layer=2; spr.tint=WHITE;
     w.addComponent(e,spr);
 
-    BoxColliderComponent col; col.isCircle=true; col.radius=20.f;
+    BoxColliderComponent col; col.isCircle=true; col.radius=28.f;  // hitbox élargie
     col.TagsCollided={(int)EntityTag::BULLET_PL,(int)EntityTag::PLAYER};
     w.addComponent(e,col);
 
@@ -170,9 +170,9 @@ static void spawnBoss(World& w, int wave) {
     float hpBase;
     float sz;
     float sc;
-    if      (wave==6) { hpBase=4000.f; sz=120.f; sc=2.0f; }
-    else if (wave==5) { hpBase=2000.f; sz=100.f; sc=1.7f; }
-    else              { hpBase=500.f+wave*200.f; sz=80.f; sc=1.4f; }
+    if      (wave==6) { hpBase=3200.f; sz=120.f; sc=1.2f; }   // -20%
+    else if (wave==5) { hpBase=1600.f; sz=100.f; sc=1.05f; }  // -20%
+    else              { hpBase=(500.f+wave*200.f)*0.8f; sz=80.f; sc=0.85f; } // -20%
     HealthComponent hpc; hpc.hp=hpc.maxHp=hpBase; w.addComponent(e,hpc);
 
     // Sprite boss (boss_00 à boss_05 selon vague)
@@ -184,7 +184,7 @@ static void spawnBoss(World& w, int wave) {
     w.addComponent(e,spr);
 
     BoxColliderComponent col; col.isCircle=true;
-    col.radius=wave==6?55.f:38.f;
+    col.radius=wave==6?60.f:44.f;  // hitbox boss élargie
     col.TagsCollided={(int)EntityTag::BULLET_PL,(int)EntityTag::PLAYER};
     w.addComponent(e,col);
 

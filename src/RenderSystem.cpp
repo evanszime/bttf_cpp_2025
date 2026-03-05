@@ -16,7 +16,6 @@ void RenderSystem::initRenderTarget() {
     _renderTarget = LoadRenderTexture(VIRTUAL_W, VIRTUAL_H);
 }
 
-
 void RenderSystem::update(float dt) {
     (void)dt;
     if (!world || !_global) return;
@@ -72,8 +71,11 @@ void RenderSystem::update(float dt) {
             case Drawable::SPRITE: {
                 auto* s = sprites.get(d.e);
                 if (s && (int)_global->_allSprites.size() > s->texturePath) {
+                    // Filtre POINT pour la map (pixel art net, pas de flou)
+                    if (s->texturePath == 36) {
+                        SetTextureFilter(_global->_allSprites[36], TEXTURE_FILTER_POINT);
+                    }
                     // Cas spécial : la MAP est immense, on la centre sur la caméra
-                    // le offsetX/Y vaut 0, et la position est décalée par _camX/_camY
                     DrawTexturePro(
                         _global->_allSprites[s->texturePath],
                         // Source : on lit la portion de la map visible

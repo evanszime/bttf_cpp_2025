@@ -36,14 +36,16 @@ static Entity spawnBullet(World& w,
     float angle=std::atan2(dy,dx)*180.f/3.14159f;
     SpriteComponent spr;
     spr.texturePath=isEnemy?7:6;
-    spr.width=10; spr.height=10;
+    spr.width=14; spr.height=14;
     spr.tag=isEnemy?EntityTag::BULLET_EN:EntityTag::BULLET_PL;
-    spr.layer=3; spr.rotation=angle;
-    if(fx==BulletEffect::EXPLOSION){ spr.width=18;spr.height=18;spr.tint=ORANGE; }
-    else if(fx==BulletEffect::PIERCE){ spr.width=14;spr.height=6;spr.tint=SKYBLUE; }
+    spr.layer=5; spr.rotation=angle;
+    spr.tint=isEnemy?Color{255,70,20,255}:Color{255,245,60,255};
+    if(fx==BulletEffect::EXPLOSION){ spr.width=22;spr.height=22;spr.tint={255,140,0,255}; }
+    else if(fx==BulletEffect::PIERCE){ spr.width=20;spr.height=8;spr.tint={80,210,255,255}; }
+    else if(fx==BulletEffect::BURST){ spr.width=12;spr.height=12;spr.tint={255,220,50,255}; }
     w.addComponent(e,spr);
     BoxColliderComponent col; col.isCircle=true;
-    col.radius=(fx==BulletEffect::EXPLOSION)?8.f:5.f;
+    col.radius=(fx==BulletEffect::EXPLOSION)?18.f:14.f;  // large hitbox bullet
     col.TagsCollided=isEnemy
         ? std::vector<int>{(int)EntityTag::PLAYER}
         : std::vector<int>{(int)EntityTag::ENEMY,(int)EntityTag::BOSS};
@@ -119,7 +121,7 @@ public:
     bool fire(float px,float py,float tx,float ty) override {
         if(!canFire()) return false;
         float dx=tx-px,dy=ty-py; normalize(dx,dy);
-        Entity e=spawnBullet(*_w,px,py,dx,dy,950.f,60.f,false,BulletEffect::PIERCE,3,0,0);
+        Entity e=spawnBullet(*_w,px,py,dx,dy,650.f,60.f,false,BulletEffect::PIERCE,3,0,0);
         auto*b=_w->getComponent<BulletComponent>(e); if(b) b->range=2000.f;
         spawnParticle(*_w,px,py,{100,180,255,220},12.f,0.08f);
         _globalComponent.playSFX(SFX_SNIPER);
@@ -181,7 +183,6 @@ public:
 std::shared_ptr<IWeapon> createWeapon(const std::string& type, World* world) {
     if(type=="shotgun")  return std::make_shared<Shotgun>(world);
     if(type=="sniper")   return std::make_shared<Sniper>(world);
-    if(type=="ak47")     return std::make_shared<AK47>(world);
     if(type=="bomb")     return std::make_shared<BombLauncher>(world);
     return std::make_shared<Pistol>(world);
 }

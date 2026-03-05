@@ -101,9 +101,10 @@ void BulletSystem::update(float dt) {
         float speed=std::sqrt(b->vx*b->vx+b->vy*b->vy);
         b->traveled+=speed*dt;
 
-        // Hors portée ou écran
+        // Hors portée ou hors map monde
         if(b->traveled>=b->range||
-           pos->x<-300||pos->x>2220||pos->y<-300||pos->y>1380){
+           pos->x<-200||pos->x>(float)(MAP_WORLD_W+200)||
+           pos->y<-200||pos->y>(float)(MAP_WORLD_H+200)){
             toRemove.push_back(e); continue;
         }
 

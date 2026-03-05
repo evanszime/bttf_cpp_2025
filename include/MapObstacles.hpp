@@ -2,126 +2,13 @@
 #include <vector>
 #include <raylib.h>
 
-// Map dimensions
+// Map en 4K (3840x2160) — couvre exactement 2x le viewport virtuel (1920x1080)
 static constexpr int MAP_WORLD_W = 3840;
 static constexpr int MAP_WORLD_H = 2160;
 
-// Obstacles statiques (x,y,w,h) en coordonnées map
-static const std::vector<Rectangle> MAP_OBSTACLES = {
-    {689,1632,160,128},  // arbre
-    {564,296,160,128},  // arbre
-    {94,1246,160,128},  // arbre
-    {606,824,160,128},  // arbre
-    {446,545,160,128},  // arbre
-    {166,288,160,128},  // arbre
-    {524,1203,160,128},  // arbre
-    {270,1476,160,128},  // arbre
-    {697,601,160,128},  // arbre
-    {46,653,160,128},  // arbre
-    {2,1730,160,128},  // arbre
-    {0,1454,160,128},  // arbre
-    {751,101,160,128},  // arbre
-    {224,1895,160,128},  // arbre
-    {350,839,160,128},  // arbre
-    {54,940,160,128},  // arbre
-    {216,1694,160,128},  // arbre
-    {286,10,160,128},  // arbre
-    {3435,1892,160,128},  // arbre
-    {2886,986,160,128},  // arbre
-    {2940,1610,160,128},  // arbre
-    {3455,1313,160,128},  // arbre
-    {2940,187,160,128},  // arbre
-    {3468,761,160,128},  // arbre
-    {3505,364,160,128},  // arbre
-    {3202,380,160,128},  // arbre
-    {3331,109,160,128},  // arbre
-    {3201,1393,160,128},  // arbre
-    {2884,1959,160,128},  // arbre
-    {3142,1855,160,128},  // arbre
-    {3199,1150,160,128},  // arbre
-    {3461,1068,160,128},  // arbre
-    {3519,1624,160,128},  // arbre
-    {3198,1660,160,128},  // arbre
-    {2964,436,160,128},  // arbre
-    {3144,680,160,128},  // arbre
-    {2719,156,160,128},  // arbre
-    {1215,54,160,128},  // arbre
-    {1474,112,160,128},  // arbre
-    {2146,61,160,128},  // arbre
-    {3569,38,160,128},  // arbre
-    {1834,49,160,128},  // arbre
-    {2433,8,160,128},  // arbre
-    {1588,1824,160,128},  // arbre
-    {582,1884,160,128},  // arbre
-    {1290,1868,160,128},  // arbre
-    {878,1846,160,128},  // arbre
-    {2595,1958,160,128},  // arbre
-    {1899,1952,160,128},  // arbre
-    {1189,374,160,128},  // arbre
-    {890,1405,160,128},  // arbre
-    {1932,1651,160,128},  // arbre
-    {1088,821,160,128},  // arbre
-    {1417,1485,160,128},  // arbre
-    {891,1108,160,128},  // arbre
-    {2292,512,160,128},  // arbre
-    {2373,1365,160,128},  // arbre
-    {757,407,160,128},  // arbre
-    {2333,1537,160,128},  // arbre
-    {944,518,160,128},  // arbre
-    {2943,1160,160,128},  // arbre
-    {1780,458,160,128},  // arbre
-    {2581,1140,160,128},  // arbre
-    {2047,384,160,128},  // arbre
-    {1236,1169,160,128},  // arbre
-    {954,1653,160,128},  // arbre
-    {1316,816,160,128},  // arbre
-    {2059,563,160,128},  // arbre
-    {3694,1929,96,48},  // rocher
-    {2842,765,96,48},  // rocher
-    {3653,1232,96,48},  // rocher
-    {1911,742,96,48},  // rocher
-    {423,430,96,48},  // rocher
-    {3222,947,96,48},  // rocher
-    {254,552,96,48},  // rocher
-    {1780,1454,96,48},  // rocher
-    {3687,1501,96,48},  // rocher
-    {1512,1146,96,48},  // rocher
-    {580,82,96,48},  // rocher
-    {3345,785,96,48},  // rocher
-    {838,963,96,48},  // rocher
-    {753,282,96,48},  // rocher
-    {3035,1432,96,48},  // rocher
-    {2212,1689,96,48},  // rocher
-    {2203,1253,96,48},  // rocher
-    {3024,88,96,48},  // rocher
-    {499,1662,96,48},  // rocher
-    {2124,974,96,48},  // rocher
-    {2257,840,96,48},  // rocher
-    {2317,1207,96,48},  // rocher
-    {3671,720,96,48},  // rocher
-    {749,1521,96,48},  // rocher
-    {3374,1512,96,48},  // rocher
-    {339,1201,96,48},  // rocher
-    {697,1121,96,48},  // rocher
-    {68,190,96,48},  // rocher
-    {2583,683,96,48},  // rocher
-    {3499,548,96,48},  // rocher
-    {2777,2016,96,48},  // rocher
-    {1205,1077,96,48},  // rocher
-    {2746,512,96,48},  // rocher
-    {513,215,96,48},  // rocher
-    {1538,1262,96,48},  // rocher
-    {2821,339,96,48},  // rocher
-    {2633,1584,96,48},  // rocher
-    {598,1548,96,48},  // rocher
-    {2103,815,96,48},  // rocher
-    {2912,1873,96,48},  // rocher
-    {599,1110,96,48},  // rocher
-    {1775,767,96,48},  // rocher
-    {3456,981,96,48},  // rocher
-    {2458,276,96,48},  // rocher
-};
+// Pas d'obstacles codés — collisions gérées par les bords map
+static const std::vector<Rectangle> MAP_OBSTACLES = {};
 
-// Spawn safe zone (autour du centre de la map)
-static constexpr float SPAWN_CENTER_X = 1920.f;
-static constexpr float SPAWN_CENTER_Y = 1080.f;
+// Spawn center = milieu de la map
+static constexpr float SPAWN_CENTER_X = MAP_WORLD_W / 2.f;  // 1920
+static constexpr float SPAWN_CENTER_Y = MAP_WORLD_H / 2.f;  // 1080
