@@ -18,12 +18,16 @@ void PhysicSystem::update(float dt) {
 void PhysicSystem::applyForce(Entity e, float fx, float fy) {
     if (auto* rb = world->getComponent<RigidbodyComponent>(e)) { rb->fx+=fx; rb->fy+=fy; }
 }
+
 void PhysicSystem::applyImpulse(Entity e, float ix, float iy) {
     if (auto* rb = world->getComponent<RigidbodyComponent>(e)) { rb->vx+=ix/rb->mass; rb->vy+=iy/rb->mass; }
 }
+
 void PhysicSystem::setVelocity(Entity e, float vx, float vy) {
     if (auto* rb = world->getComponent<RigidbodyComponent>(e)) { rb->vx=vx; rb->vy=vy; }
 }
+
 void PhysicSystem::stop(Entity e) {
     if (auto* rb = world->getComponent<RigidbodyComponent>(e)) rb->vx=rb->vy=rb->fx=rb->fy=0;
 }
+
