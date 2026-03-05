@@ -42,7 +42,7 @@ static Entity spawnBullet(World& w,
 
     float angle=std::atan2(dy,dx)*180.f/3.14159f;
     SpriteComponent spr;
-    spr.texturePath=isEnemy?4:3;
+    spr.texturePath=isEnemy?7:6;
     spr.width=10; spr.height=10;
     spr.tag=isEnemy?EntityTag::BULLET_EN:EntityTag::BULLET_PL;
     spr.layer=3; spr.rotation=angle;

@@ -53,9 +53,9 @@ static void spawnDrop(World& w, float x, float y) {
     int r=d(rngB);
     // 40% ammo, 25% hp, 15% bouclier, 20% rien
     EntityTag tag; int tex;
-    if(r<40)       { tag=EntityTag::PICKUP_AMMO;   tex=5; }
-    else if(r<65)  { tag=EntityTag::PICKUP_HP;     tex=9; }  // orbe vert = soin
-    else if(r<80)  { tag=EntityTag::PICKUP_SHIELD; tex=3; }  // bullet_pl réutilisé temporairement
+    if(r<40)       { tag=EntityTag::PICKUP_AMMO;   tex=10; }
+    else if(r<65)  { tag=EntityTag::PICKUP_HP;     tex=14; }  // xp_orb vert = soin
+    else if(r<80)  { tag=EntityTag::PICKUP_SHIELD; tex=6; }  // bullet_player coloré en bleu
     else return;   // pas de drop
 
     Entity e=w.createEntity();
@@ -178,7 +178,7 @@ void BulletSystem::update(float dt) {
             // XP orb toujours
             Entity orb=world->createEntity();
             PositionComponent op; op.x=pos->x; op.y=pos->y; world->addComponent(orb,op);
-            SpriteComponent os; os.texturePath=9; os.width=12; os.height=12;
+            SpriteComponent os; os.texturePath=14; os.width=12; os.height=12;
             os.tag=EntityTag::XP_ORB; os.layer=1; os.tint=GREEN;
             os.offsetX=-6; os.offsetY=-6; world->addComponent(orb,os);
             BoxColliderComponent oc; oc.isCircle=true; oc.radius=10.f;

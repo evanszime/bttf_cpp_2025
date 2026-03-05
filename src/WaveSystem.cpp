@@ -5,10 +5,10 @@
 static std::mt19937 rngW(77);
 
 // 8 types ennemis normaux (indices 12..19)
-static const int ENEMY_TEX_BASE = 12;
+static const int ENEMY_TEX_BASE = 17;
 static const int ENEMY_TEX_COUNT = 8;
 // 7 types boss (indices 20..26)
-static const int BOSS_TEX_BASE = 20;
+static const int BOSS_TEX_BASE = 25;
 static const int BOSS_TEX_COUNT = 7;
 
 static void spawnEnemy(World& w, int wave, bool isBoss) {
