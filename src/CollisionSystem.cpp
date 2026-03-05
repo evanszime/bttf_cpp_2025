@@ -22,6 +22,7 @@ static bool canCollide(const BoxColliderComponent& col, const LayerTagInfo& b) {
     return layerOk && tagOk;
 }
 
+
 static bool rectRect(Entity A, Entity B, World& w, const BoxColliderComponent& bA, const BoxColliderComponent& bB) {
     auto* pA = w.getComponent<PositionComponent>(A);
     auto* pB = w.getComponent<PositionComponent>(B);
