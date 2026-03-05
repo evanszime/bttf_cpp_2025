@@ -15,6 +15,7 @@ void PhysicSystem::update(float dt) {
         rb->fx = 0; rb->fy = 0;
     }
 }
+
 void PhysicSystem::applyForce(Entity e, float fx, float fy) {
     if (auto* rb = world->getComponent<RigidbodyComponent>(e)) { rb->fx+=fx; rb->fy+=fy; }
 }
