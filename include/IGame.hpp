@@ -33,7 +33,7 @@ public:
 
         loadAssets();
         initializeScenes();
-        sceneManager.changeScene(SceneType::MENU);
+        sceneManager.changeScene(SceneType::SPLASH);
         isRunning = true;
 
         while (!exit && !WindowShouldClose()) {

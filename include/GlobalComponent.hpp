@@ -7,31 +7,57 @@
 
 class GlobalComponent {
 public:
-    // TEXTURES - charger dans Game.cpp via addSprite() dans cet ordre:
-    //  [0] player.png        [1] enemy.png         [2] boss.png
-    //  [3] bullet_player.png [4] bullet_enemy.png  [5] pickup_pistol.png
-    //  [6] pickup_shotgun.png[7] pickup_sniper.png  [8] pickup_rocket.png
-    //  [9] xp_orb.png       [10] background.png   [11] logo.png
+    // TEXTURES
     std::vector<Texture2D> _allSprites;
 
-    // SONS - charger via addMusic():
-    //  [0] shoot_pistol  [1] shoot_shotgun [2] shoot_rocket
-    //  [3] enemy_die     [4] pickup        [5] reload
-    //  [6] music_menu    [7] music_game
-    std::vector<Sound> _allMusics;
-
-    // ANIMATIONS: animSetKey -> animName -> AnimationSequence
+    // ANIMATIONS (utilisées par AnimationSystem)
     std::unordered_map<std::string,
         std::unordered_map<std::string, AnimationSequence>> _allAnimations;
 
-    // SETTINGS persistants
-    float masterVolume = 0.5f;
-    bool  isFullscreen = false;
+    // SONS (Sound = court) + MUSIQUE (Music = longue, streamée)
+    std::vector<Sound> _allMusics;   // SFX courts + sons UI
+    Music              bgMusic = {};  // musique de fond (streamée)
+    bool               bgMusicLoaded = false;
 
+    // SETTINGS
+    float masterVolume  = 0.8f;
+    float musicVolume   = 0.7f;
+    float sfxVolume     = 1.0f;
+    float brightness    = 1.0f;   // 0.2 .. 1.0
+    bool  isFullscreen  = false;
+
+    // Helpers
     void addSprite(const std::string& path);
     void addSomeSprites(const std::vector<std::string>& paths);
     void addMusic(const std::string& path);
     void addSomeMusics(const std::vector<std::string>& paths);
+
+    // Jouer un SFX par index (volume = sfxVolume * masterVolume)
+    void playSFX(int idx, float vol = 1.0f) {
+        if(idx < 0 || idx >= (int)_allMusics.size()) return;
+        SetSoundVolume(_allMusics[idx], vol * sfxVolume * masterVolume);
+        PlaySound(_allMusics[idx]);
+    }
+
+    // Changer la musique de fond
+    void playBGMusic(const std::string& path) {
+        if(bgMusicLoaded) { StopMusicStream(bgMusic); UnloadMusicStream(bgMusic); }
+        bgMusic = LoadMusicStream(path.c_str());
+        bgMusicLoaded = true;
+        SetMusicVolume(bgMusic, musicVolume * masterVolume);
+        PlayMusicStream(bgMusic);
+    }
+
+    void updateBGMusic() {
+        if(bgMusicLoaded) {
+            SetMusicVolume(bgMusic, musicVolume * masterVolume);
+            UpdateMusicStream(bgMusic);
+        }
+    }
+
+    void stopBGMusic() {
+        if(bgMusicLoaded) StopMusicStream(bgMusic);
+    }
 };
 
 extern GlobalComponent _globalComponent;

@@ -186,6 +186,8 @@ void BulletSystem::update(float dt) {
             // Drop aléatoire (ammo/hp/bouclier)
             spawnDrop(*world,pos->x+15,pos->y);
         }
+        // Son mort ennemi
+        _globalComponent.playSFX(5); // SFX::ENEMY_DIE
         // Compter kill
         for(Entity p:world->getContainer<PlayerComponent>().getEntities())
             if(auto*pl=world->getComponent<PlayerComponent>(p)) pl->kills++;

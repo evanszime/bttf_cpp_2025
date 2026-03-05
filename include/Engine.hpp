@@ -54,3 +54,6 @@
 #include <vector>
 #include <memory>
 #include <string>
+
+// MAP
+#include "MapObstacles.hpp"
